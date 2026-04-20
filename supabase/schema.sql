@@ -29,6 +29,12 @@ create table if not exists public.packages (
   receiver_address text not null,
   weight_kg numeric(10,2) not null check (weight_kg > 0),
   status package_status not null default 'PACKAGE_CREATED',
+  pod_image_url text,
+  delivered_at timestamptz,
+  courier_latitude double precision,
+  courier_longitude double precision,
+  target_latitude double precision,
+  target_longitude double precision,
   created_by uuid not null references public.profiles(user_id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
