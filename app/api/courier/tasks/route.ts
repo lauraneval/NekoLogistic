@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     return mobileError("Invalid status query", 400);
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("packages")
     .select(

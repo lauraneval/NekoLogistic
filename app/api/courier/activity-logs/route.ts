@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     return mobileError("Forbidden", 403);
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("activity_logs")
     .insert({

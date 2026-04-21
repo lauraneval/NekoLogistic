@@ -8,38 +8,38 @@ const loginSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const parsed = await parseJson(req, loginSchema);
+  try {
+    const parsed = await parseJson(req, loginSchema);
 
-  if (!parsed.success) {
-    return fail("Invalid credentials payload", 422, parsed.error.flatten());
+    if (!parsed.success) {
+      return fail("Invalid credentials payload", 422, parsed.error.flatten());
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
+
+    if (error || !authData.session) {
+      return fail("Email or password is invalid", 401);
+    }
+
+    const user = authData.user;
+    const token = authData.session.access_token;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const role = (profile?.role as string | undefined) ?? "kurir";
+    const redirectTo = role === "admin_gudang" ? "/admin-gudang" : `/${role}`;
+
+    return ok({ role, redirectTo, token });
+  } catch (err: any) {
+    console.error("Login Error:", err);
+    return fail(err.message || "Internal Server Error", 500);
   }
-
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
-
-  if (error) {
-    return fail("Email or password is invalid", 401);
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return fail("Session not established", 401);
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const role = (profile?.role as string | undefined) ?? "kurir";
-  const redirectTo = role === "admin_gudang" ? "/admin-gudang" : `/${role}`;
-
-  return ok({ role, redirectTo });
 }

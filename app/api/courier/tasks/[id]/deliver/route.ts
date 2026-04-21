@@ -44,7 +44,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/courier/tasks/[i
     return mobileError("Invalid delivered_at", 400);
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
 
   const { data: existingTask, error: taskError } = await supabase
     .from("packages")

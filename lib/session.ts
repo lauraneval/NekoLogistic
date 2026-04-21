@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { AppRole } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -10,11 +11,14 @@ export type SessionProfile = {
 
 export async function getSessionProfile() {
   const supabase = await createSupabaseServerClient();
+  const headerList = await headers();
+  const authHeader = headerList.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
 
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(token);
 
   if (userError || !user) {
     return null;

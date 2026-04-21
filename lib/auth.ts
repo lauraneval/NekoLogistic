@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { fail } from "@/lib/api";
 import type { AppRole } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -9,10 +10,14 @@ type AuthContext = {
 
 export async function requireRole(allowedRoles: AppRole[]) {
   const supabase = await createSupabaseServerClient();
+  const headerList = await headers();
+  const authHeader = headerList.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(token);
 
   if (userError || !user) {
     return { error: fail("Unauthorized", 401) } as const;
@@ -42,10 +47,14 @@ export async function requireRole(allowedRoles: AppRole[]) {
 
 export async function requireAnyAuthenticated() {
   const supabase = await createSupabaseServerClient();
+  const headerList = await headers();
+  const authHeader = headerList.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(token);
 
   if (error || !user) {
     return { error: fail("Unauthorized", 401) } as const;

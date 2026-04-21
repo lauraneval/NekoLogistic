@@ -1,6 +1,6 @@
 import type { AppRole } from "@/lib/types";
 import { mobileError } from "@/lib/mobile-api";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const MOBILE_ALLOWED_ROLES: AppRole[] = ["kurir", "superadmin", "admin_gudang"];
 
@@ -9,28 +9,21 @@ type MobileAuthContext = {
   role: AppRole;
 };
 
-function readBearerToken(request: Request) {
-  const authHeader = request.headers.get("authorization") ?? "";
-
-  if (!authHeader.toLowerCase().startsWith("bearer ")) {
-    return null;
-  }
-
-  const token = authHeader.slice(7).trim();
-  return token.length > 0 ? token : null;
-}
-
 export async function authenticateMobileRequest(
   request: Request,
   allowedRoles: AppRole[] = MOBILE_ALLOWED_ROLES,
 ) {
-  const token = readBearerToken(request);
+  const authHeader = request.headers.get("authorization") ?? "";
+  const token = authHeader.toLowerCase().startsWith("bearer ") 
+    ? authHeader.slice(7).trim() 
+    : undefined;
 
   if (!token) {
-    return { error: mobileError("Unauthorized", 401) } as const;
+    // If no token, maybe it's using cookies (for web debugging mobile APIs)
+    // but usually mobile apps MUST send token.
   }
 
-  const supabase = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
     error: userError,

@@ -32,7 +32,7 @@ export const createManifestSchema = z.object({
 
 export const registerUserSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(10).max(64),
+  password: z.string().min(8).max(64),
   fullName: safeText,
   role: z.enum(["admin_gudang", "kurir"]),
 });
