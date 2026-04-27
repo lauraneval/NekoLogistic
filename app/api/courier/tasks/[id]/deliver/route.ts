@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { mobileError, mobileMessage } from "@/lib/mobile-api";
 import { authenticateMobileRequest } from "@/lib/mobile-auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const deliverSchema = z.object({
   status: z.literal("DELIVERED"),

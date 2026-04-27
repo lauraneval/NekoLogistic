@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { mobileError, mobileMessage } from "@/lib/mobile-api";
 import { authenticateMobileRequest } from "@/lib/mobile-auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const activityLogSchema = z.object({
   actor_id: z.uuid(),

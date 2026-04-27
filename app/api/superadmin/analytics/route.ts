@@ -54,13 +54,13 @@ export async function GET() {
     };
 
     // Calculate courier productivity
-    const courierStats = allProfiles?.filter(p => p.role === 'kurir').map(courier => {
-      const deliveredCount = deliveryLogs?.filter(log => log.created_by === courier.user_id).length || 0;
+    const courierStats = allProfiles?.filter((p: any) => p.role === 'kurir').map((courier: any) => {
+      const deliveredCount = deliveryLogs?.filter((log: any) => log.created_by === courier.user_id).length || 0;
       return {
         name: courier.full_name,
         delivered: deliveredCount
       };
-    }).sort((a, b) => b.delivered - a.delivered).slice(0, 5) || [];
+    }).sort((a: any, b: any) => b.delivered - a.delivered).slice(0, 5) || [];
 
     // Calculate workload in last 24 hours (hourly)
     const now = new Date();
@@ -68,7 +68,7 @@ export async function GET() {
     const hourlyWorkload = Array.from({ length: 24 }, (_, i) => {
       const hourDate = new Date(now.getTime() - i * 60 * 60 * 1000);
       hourDate.setMinutes(0, 0, 0);
-      const count = packages?.filter(p => {
+      const count = packages?.filter((p: any) => {
         const pDate = new Date(p.created_at);
         return pDate >= hourDate && pDate < new Date(hourDate.getTime() + 60 * 60 * 1000);
       }).length || 0;

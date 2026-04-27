@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { mobileError, mobileOk } from "@/lib/mobile-api";
 import { authenticateMobileRequest } from "@/lib/mobile-auth";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const statusSchema = z.enum([
   "PACKAGE_CREATED",

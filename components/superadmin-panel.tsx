@@ -689,18 +689,16 @@ export default function SuperadminPanel() {
                 </div>
               </div>
 
-              {!editingUser && (
-                <div className="grid md:grid-cols-2 gap-6 bg-black/20 p-5 rounded-[2rem] border border-white/5">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Alamat Email (Kredensial)</label>
-                    <input required value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" placeholder="nama@nekologistic.id" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Kata Sandi Sementara</label>
-                    <input required value={form.password} onChange={e => setForm({...form, password: e.target.value})} type="password" placeholder="Minimal 8 Karakter" className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all" />
-                  </div>
+              <div className="grid md:grid-cols-2 gap-6 bg-black/20 p-5 rounded-[2rem] border border-white/5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Alamat Email (Kredensial)</label>
+                  <input required readOnly={!!editingUser} value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" placeholder="nama@nekologistic.id" className={`w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all ${editingUser ? 'opacity-50 cursor-not-allowed' : ''}`} />
                 </div>
-              )}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">{editingUser ? 'Kata Sandi Baru (Opsional)' : 'Kata Sandi Sementara'}</label>
+                  <input required={!editingUser} value={form.password} onChange={e => setForm({...form, password: e.target.value})} type="password" placeholder={editingUser ? "Kosongkan jika tidak diubah" : "Minimal 8 Karakter"} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all" />
+                </div>
+              </div>
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">

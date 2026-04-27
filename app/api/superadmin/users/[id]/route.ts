@@ -4,7 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireRole(["superadmin"]);
   if ("error" in auth) return auth.error;
@@ -25,11 +25,11 @@ export async function PATCH(
       .from("profiles")
       .select("avatar_url")
       .eq("user_id", id)
-      .single();
+      .single() as any;
 
     if (currentProfile?.avatar_url && currentProfile.avatar_url !== body.avatar_url) {
       try {
-        const url = new URL(currentProfile.avatar_url);
+        const url = new URL(currentProfile.avatar_url as string);
         const fileName = url.pathname.split('/').pop();
         if (fileName) {
           await supabaseAdmin.storage.from('avatars').remove([`avatars/${fileName}`]);
@@ -77,7 +77,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireRole(["superadmin"]);
   if ("error" in auth) return auth.error;
@@ -96,7 +96,7 @@ export async function DELETE(
     .from("profiles")
     .select("avatar_url")
     .eq("user_id", id)
-    .single();
+    .single() as any;
 
   // Delete from Auth (this will cascade delete the profile due to FK constraints)
   const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
@@ -108,7 +108,7 @@ export async function DELETE(
   // Cleanup avatar from storage if exists
   if (profile?.avatar_url) {
     try {
-      const url = new URL(profile.avatar_url);
+      const url = new URL(profile.avatar_url as string);
       const fileName = url.pathname.split('/').pop();
       if (fileName) {
         await supabaseAdmin.storage.from('avatars').remove([`avatars/${fileName}`]);
