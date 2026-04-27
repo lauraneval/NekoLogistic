@@ -1,0 +1,5 @@
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 0H0V20H20V0Z" fill="transparent"/>
+  <path d="M20 1H0" stroke="white" stroke-opacity="0.2"/>
+  <path d="M1 20L1 0" stroke="white" stroke-opacity="0.2"/>
+</svg>

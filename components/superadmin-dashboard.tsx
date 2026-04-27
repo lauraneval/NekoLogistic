@@ -158,7 +158,7 @@ export function SuperadminDashboard({ initialData }: Props) {
                 <p className="text-sm text-slate-600">
                   {log.entity} {log.entity_id ?? ""}
                 </p>
-                <p className="text-xs text-slate-500">{new Date(log.created_at).toLocaleString("id-ID")}</p>
+                <p suppressHydrationWarning className="text-xs text-slate-500">{new Date(log.created_at).toLocaleString("id-ID")}</p>
               </article>
             ))}
             {!loading && data.recentActivities.length === 0 ? (

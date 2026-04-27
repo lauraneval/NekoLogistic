@@ -86,7 +86,7 @@ export function TrackingPortal() {
             {result.timeline.map((item) => (
               <li key={`${item.event_code}-${item.created_at}`} className="mb-8 ms-4">
                 <span className="absolute -start-2 mt-1.5 h-3 w-3 rounded-full bg-orange-500" />
-                <time className="text-xs font-medium text-slate-500">
+                <time suppressHydrationWarning className="text-xs font-medium text-slate-500">
                   {new Date(item.created_at).toLocaleString("id-ID")}
                 </time>
                 <h3 className="text-base font-semibold text-slate-900">{item.event_label}</h3>

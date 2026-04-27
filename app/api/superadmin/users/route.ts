@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   if ("error" in auth) return auth.error;
 
   try {
-    const { email, password, full_name, role, phone, employee_id, address } = await req.json();
+    const { email, password, full_name, role, phone, employee_id, address, avatar_url } = await req.json();
     const adminClient = createSupabaseAdminClient();
 
     // Create user in Auth
@@ -60,7 +60,8 @@ export async function POST(req: Request) {
         role,
         phone,
         employee_id,
-        address
+        address,
+        avatar_url
       })
       .eq("user_id", authUser.user.id);
 

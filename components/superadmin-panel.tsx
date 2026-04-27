@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Cropper, { Area } from "react-easy-crop";
+import { getCroppedImg, compressImage } from "@/lib/image-processing";
 import { 
   Users, Package, Activity, ShieldAlert, RefreshCcw, 
   LayoutDashboard, Settings, History, Menu, Bell, 
   UserPlus, Trash2, Ban, CheckCircle2, Search, Edit3, X, Filter,
-  Camera, AlertTriangle
+  Camera, AlertTriangle, ZoomIn, ZoomOut
 } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -18,6 +20,15 @@ export default function SuperadminPanel() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Cropper States
+  const [isCropping, setIsCropping] = useState(false);
+  const [tempImage, setTempImage] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   
   // UI States
   const [isModalOpen, setModalOpen] = useState(false);
@@ -82,33 +93,86 @@ export default function SuperadminPanel() {
     setConfirmDialog(null);
   };
 
+  const onCropComplete = useCallback((_area: Area, pixels: Area) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleSaveCrop = async () => {
+    if (!tempImage || !croppedAreaPixels) return;
+    
+    try {
+      const croppedBlob = await getCroppedImg(tempImage, croppedAreaPixels);
+      if (!croppedBlob) return;
+      
+      const compressedFile = await compressImage(croppedBlob);
+      
+      const url = URL.createObjectURL(compressedFile);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(url);
+      setSelectedFile(compressedFile);
+      setIsCropping(false);
+      setTempImage(null);
+    } catch (e) {
+      console.error(e);
+      alert("Gagal memproses gambar");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const action = async () => {
-      const url = editingUser ? `/api/superadmin/users/${editingUser.user_id}` : "/api/superadmin/users";
-      const method = editingUser ? "PATCH" : "POST";
-      
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      setIsUploading(true);
+      let currentAvatarUrl = form.avatar_url;
 
-      if (res.ok) {
-        closeModal();
-        fetchData();
-        closeConfirm();
-      } else {
-        alert("Terjadi kesalahan saat menyimpan data.");
-        closeConfirm();
+      try {
+        if (selectedFile) {
+          const fileExt = "jpg"; // We always compress to jpg
+          const identifier = editingUser?.user_id || `new-${Date.now()}`;
+          const fileName = `${identifier}-${Math.random()}.${fileExt}`;
+          const filePath = `avatars/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, selectedFile);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+          
+          currentAvatarUrl = publicUrl;
+        }
+
+        const url = editingUser ? `/api/superadmin/users/${editingUser.user_id}` : "/api/superadmin/users";
+        const method = editingUser ? "PATCH" : "POST";
+        
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, avatar_url: currentAvatarUrl }),
+        });
+
+        if (res.ok) {
+          closeModal();
+          fetchData();
+          closeConfirm();
+        } else {
+          alert("Terjadi kesalahan saat menyimpan data.");
+          closeConfirm();
+        }
+      } catch (error: any) {
+        alert("Gagal memproses data: " + error.message);
+      } finally {
+        setIsUploading(false);
       }
     };
 
     if (editingUser) {
       openConfirm("Konfirmasi Pembaruan", "Apakah Anda yakin ingin memperbarui data profil staf ini?", "Perbarui Data", "info", action);
     } else {
-      action(); // No confirm for creation, or you could add one
+      action(); 
     }
   };
 
@@ -116,6 +180,11 @@ export default function SuperadminPanel() {
     setModalOpen(false);
     setEditingUser(null);
     setForm({ email: '', password: '', full_name: '', role: 'kurir', phone: '', employee_id: '', address: '', avatar_url: '' });
+    setSelectedFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setIsCropping(false);
+    setTempImage(null);
   };
 
   const openEditModal = (user: any) => {
@@ -133,32 +202,15 @@ export default function SuperadminPanel() {
     setModalOpen(true);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !editingUser) return;
+    if (!file) return;
 
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${editingUser.user_id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      setForm(prev => ({ ...prev, avatar_url: publicUrl }));
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setIsUploading(false);
-    }
+    const url = URL.createObjectURL(file);
+    setTempImage(url);
+    setIsCropping(true);
+    setZoom(1);
+    setCrop({ x: 0, y: 0 });
   };
 
   const handleToggleSuspend = (user: any) => {
@@ -361,7 +413,7 @@ export default function SuperadminPanel() {
                         l.actor_name.toLowerCase().includes(logSearch.toLowerCase())
                       ).map((log) => (
                         <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-8 py-5 text-[11px] font-mono text-slate-400">
+                          <td suppressHydrationWarning className="px-8 py-5 text-[11px] font-mono text-slate-400">
                             {new Date(log.created_at).toLocaleString('id-ID')}
                           </td>
                           <td className="px-8 py-5">
@@ -507,6 +559,69 @@ export default function SuperadminPanel() {
         </div>
       </main>
 
+      {/* Cropper Modal */}
+      {isCropping && tempImage && (
+        <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl p-4 sm:p-10 animate-in fade-in duration-300">
+          <div className="w-full max-w-xl flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-white tracking-tight">Sesuaikan Foto.</h2>
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Geser dan Zoom untuk Presisi Optimal</p>
+              </div>
+              <button onClick={() => { setIsCropping(false); setTempImage(null); }} className="p-3 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                <X size={20} className="text-slate-300" />
+              </button>
+            </div>
+
+            <div className="relative h-[350px] sm:h-[450px] w-full bg-slate-900 rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl">
+              <Cropper
+                image={tempImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                cropShape="rect"
+                showGrid={true}
+              />
+            </div>
+
+            <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-6">
+              <div className="flex items-center gap-6">
+                <ZoomOut size={18} className="text-slate-500" />
+                <input
+                  type="range"
+                  value={zoom}
+                  min={1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="flex-1 accent-orange-500 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer"
+                />
+                <ZoomIn size={18} className="text-slate-500" />
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => { setIsCropping(false); setTempImage(null); }} 
+                  className="flex-1 bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest py-5 rounded-2xl hover:bg-white/10 transition-colors"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={handleSaveCrop} 
+                  className="flex-1 bg-orange-600 text-white font-black text-[10px] uppercase tracking-widest py-5 rounded-2xl hover:bg-orange-500 transition-all shadow-[0_0_20px_rgba(249,115,22,0.3)]"
+                >
+                  Terapkan Potongan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {confirmDialog && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -541,29 +656,27 @@ export default function SuperadminPanel() {
             <p className="text-slate-400 mb-8 font-medium text-sm">Formulir otorisasi dan identitas keamanan NekoLogistic.</p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {editingUser && (
-                <div className="flex flex-col items-center justify-center gap-4 mb-8 bg-black/20 p-6 rounded-[2rem] border border-white/5">
-                  <div className="relative group cursor-pointer">
-                    <div className="h-32 w-32 rounded-[2rem] bg-slate-900 overflow-hidden border-2 border-white/10 shadow-xl transition-all group-hover:border-orange-500/50">
-                      {form.avatar_url ? (
-                        <img src={form.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-4xl font-black text-slate-600">
-                          {form.full_name ? form.full_name.charAt(0).toUpperCase() : '?'}
-                        </div>
-                      )}
-                    </div>
-                    <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm rounded-[2rem]">
-                      <Camera size={28} className="mb-2 text-orange-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-center px-2">Ubah<br/>Foto</span>
-                      <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
-                    </label>
+              <div className="flex flex-col items-center justify-center gap-4 mb-8 bg-black/20 p-6 rounded-[2rem] border border-white/5">
+                <div className="relative group cursor-pointer">
+                  <div className="h-32 w-32 rounded-[2rem] bg-slate-900 overflow-hidden border-2 border-white/10 shadow-xl transition-all group-hover:border-orange-500/50">
+                    {(previewUrl || form.avatar_url) ? (
+                      <img src={previewUrl || form.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-4xl font-black text-slate-600">
+                        {form.full_name ? form.full_name.charAt(0).toUpperCase() : '?'}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-orange-500/70">
-                    {isUploading ? 'MENGUNGGAH ASET...' : 'FORMAT: JPG/PNG/WEBP'}
-                  </p>
+                  <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm rounded-[2rem]">
+                    <Camera size={28} className="mb-2 text-orange-400" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-center px-2">Ubah<br/>Foto</span>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
+                  </label>
                 </div>
-              )}
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-500/70">
+                  {isUploading ? 'MEMPROSES DATA...' : 'FORMAT: JPG/PNG/WEBP'}
+                </p>
+              </div>
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -609,8 +722,14 @@ export default function SuperadminPanel() {
                 <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={3} placeholder="Alamat lengkap sesuai identitas..." className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/20 transition-all resize-none"></textarea>
               </div>
 
-              <button type="submit" className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:bg-orange-500 transition-all hover:scale-[1.02] active:scale-95 border border-orange-500/50">
-                {editingUser ? 'Simpan Pembaruan Identitas' : 'Otorisasi Anggota Baru'}
+              <button disabled={isUploading} type="submit" className="w-full bg-orange-600 text-white py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(249,115,22,0.3)] hover:bg-orange-500 transition-all hover:scale-[1.02] active:scale-95 border border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                {isUploading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <RefreshCcw className="animate-spin" size={16} /> MENYIMPAN DATA...
+                  </span>
+                ) : (
+                  editingUser ? 'Simpan Pembaruan Identitas' : 'Otorisasi Anggota Baru'
+                )}
               </button>
             </form>
           </div>
