@@ -12,18 +12,9 @@ type Env = z.infer<typeof envSchema>;
 let cachedEnv: Env | null = null;
 
 export function getEnv() {
-  if (cachedEnv) {
-    return cachedEnv;
-  }
+  if (cachedEnv) return cachedEnv;
 
-  const isServer = typeof window === "undefined";
-
-  const parsed = envSchema.safeParse({
-    NODE_ENV: process.env.NODE_ENV ?? "development",
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  });
+  const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
     const message = parsed.error.issues
@@ -31,10 +22,6 @@ export function getEnv() {
       .join("; ");
 
     throw new Error(`Invalid environment configuration: ${message}`);
-  }
-
-  if (isServer && !parsed.data.SUPABASE_SERVICE_ROLE_KEY && process.env.NODE_ENV === "production") {
-    console.warn("Warning: SUPABASE_SERVICE_ROLE_KEY is missing in production server environment");
   }
 
   cachedEnv = parsed.data;

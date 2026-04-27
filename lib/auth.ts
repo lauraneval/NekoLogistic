@@ -10,14 +10,9 @@ type AuthContext = {
 
 export async function requireRole(allowedRoles: AppRole[]) {
   const supabase = await createSupabaseServerClient();
-  const headerList = await headers();
-  const authHeader = headerList.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser(token);
+  
+  // getUser() handles both cookies and Bearer token automatically via our server client config
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !user) {
     return { error: fail("Unauthorized", 401) } as const;
@@ -25,7 +20,7 @@ export async function requireRole(allowedRoles: AppRole[]) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role")
+    .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -33,8 +28,7 @@ export async function requireRole(allowedRoles: AppRole[]) {
     return { error: fail("Profile not found", 403) } as const;
   }
 
-  // Skip suspended check if column might be missing
-  if ((profile as any).is_suspended) {
+  if (profile.is_suspended) {
     return { error: fail("Account suspended", 403) } as const;
   }
 
@@ -44,9 +38,10 @@ export async function requireRole(allowedRoles: AppRole[]) {
 
   return {
     data: {
-      userId: user.id,
-      role: profile.role as AppRole,
-    } satisfies AuthContext,
+      user,
+      profile: profile as Profile,
+    },
+    supabase, // Return instance to avoid re-creation
   } as const;
 }
 
