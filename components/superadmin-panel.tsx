@@ -215,16 +215,21 @@ export default function SuperadminPanel() {
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-5 pointer-events-none"></div>
       
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform glass border-r border-white/5 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-[#14100c] border-r border-white/10 transition-transform duration-300 ease-in-out ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0`}>
         <div className="flex h-full flex-col p-8 relative z-10">
-          <div className="mb-12 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600/20 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] border border-orange-500/20"><Package size={20} /></div>
-            <span className="text-2xl font-black tracking-tighter text-white">NEKO<span className="text-orange-500">LOG.</span></span>
+          <div className="mb-12 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600/20 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.2)] border border-orange-500/20"><Package size={20} /></div>
+              <span className="text-2xl font-black tracking-tighter text-white">NEKO<span className="text-orange-500">LOG.</span></span>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
           </div>
           <nav className="flex-1 space-y-2">
-            <SidebarItem icon={<Users size={18}/>} label="Manajemen Staf" active={activeTab === "staff"} onClick={() => setActiveTab("staff")} />
-            <SidebarItem icon={<LayoutDashboard size={18}/>} label="Metrik Sistem" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
-            <SidebarItem icon={<History size={18}/>} label="Jejak Audit" active={activeTab === "logs"} onClick={() => setActiveTab("logs")} />
+            <SidebarItem icon={<Users size={18}/>} label="Manajemen Staf" active={activeTab === "staff"} onClick={() => { setActiveTab("staff"); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+            <SidebarItem icon={<LayoutDashboard size={18}/>} label="Metrik Sistem" active={activeTab === "dashboard"} onClick={() => { setActiveTab("dashboard"); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+            <SidebarItem icon={<History size={18}/>} label="Jejak Audit" active={activeTab === "logs"} onClick={() => { setActiveTab("logs"); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
           </nav>
           <div className="pt-6 border-t border-white/10"><LogoutButton /></div>
         </div>
@@ -232,18 +237,25 @@ export default function SuperadminPanel() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 relative z-10 h-screen overflow-y-auto">
-        <header className="sticky top-0 z-40 flex h-24 items-center justify-between px-12 glass border-b border-white/5">
-          <h2 className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">{activeTab === 'staff' ? 'Manajemen Staf' : activeTab === 'dashboard' ? 'Metrik Sistem' : 'Jejak Audit'}</h2>
+        <header className="sticky top-0 z-40 flex h-20 sm:h-24 items-center justify-between px-6 sm:px-12 bg-[#14100c] border-b border-white/10">
           <div className="flex items-center gap-4">
-            <button onClick={fetchData} className="flex items-center justify-center h-11 w-11 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-orange-500/30 transition-all text-slate-300 hover:text-orange-400 group"><RefreshCcw size={18} className="group-hover:rotate-180 transition-transform duration-500" /></button>
-            <div className="h-11 w-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 relative">
-              <Bell size={18} />
-              <div className="absolute top-3 right-3 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></div>
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 text-slate-300 hover:text-orange-500 transition-colors">
+              <Menu size={24} />
+            </button>
+            <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] text-orange-500 truncate max-w-[150px] sm:max-w-none">
+              {activeTab === 'staff' ? 'Manajemen Staf' : activeTab === 'dashboard' ? 'Metrik Sistem' : 'Jejak Audit'}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button onClick={fetchData} className="flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-orange-500/30 transition-all text-slate-300 hover:text-orange-400 group"><RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-500" /></button>
+            <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 relative">
+              <Bell size={16} />
+              <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 h-2 w-2 rounded-full bg-orange-500 animate-pulse"></div>
             </div>
           </div>
         </header>
 
-        <div className="p-6 md:p-12 max-w-7xl mx-auto">
+        <div className="p-6 sm:p-12 max-w-7xl mx-auto">
           {activeTab === "dashboard" && (
             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div>
@@ -252,11 +264,11 @@ export default function SuperadminPanel() {
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard label="Total Paket" value={data?.stats?.total} sub="Terdaftar di sistem" icon={<Package className="text-orange-500" />} />
-                <StatCard label="Terkirim" value={data?.stats?.delivered} sub="Paket sukses" icon={<CheckCircle2 className="text-green-500" />} />
-                <StatCard label="Dalam Perjalanan" value={data?.stats?.in_transit} sub="Aktif di kurir" icon={<Activity className="text-blue-500" />} />
-                <StatCard label="Menunggu" value={data?.stats?.pending} sub="Antrian gudang" icon={<RefreshCcw className="text-slate-400" />} />
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <StatCard label="Total Paket" value={data?.stats?.total} sub="Terdaftar" icon={<Package className="text-orange-500" />} />
+                <StatCard label="Terkirim" value={data?.stats?.delivered} sub="Sukses" icon={<CheckCircle2 className="text-green-500" />} />
+                <StatCard label="Aktif" value={data?.stats?.in_transit} sub="Kurir" icon={<Activity className="text-blue-500" />} />
+                <StatCard label="Menunggu" value={data?.stats?.pending} sub="Gudang" icon={<RefreshCcw className="text-slate-400" />} />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
