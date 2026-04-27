@@ -33,6 +33,11 @@ export async function requireRole(allowedRoles: AppRole[]) {
     return { error: fail("Profile not found", 403) } as const;
   }
 
+  // Skip suspended check if column might be missing
+  if ((profile as any).is_suspended) {
+    return { error: fail("Account suspended", 403) } as const;
+  }
+
   if (!allowedRoles.includes(profile.role as AppRole)) {
     return { error: fail("Forbidden", 403) } as const;
   }
@@ -58,6 +63,16 @@ export async function requireAnyAuthenticated() {
 
   if (error || !user) {
     return { error: fail("Unauthorized", 401) } as const;
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (profile && (profile as any).is_suspended) {
+    return { error: fail("Account suspended", 403) } as const;
   }
 
   return { data: { userId: user.id } } as const;

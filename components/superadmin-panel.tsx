@@ -1,543 +1,524 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { 
-  Users, 
-  Package, 
-  BarChart3, 
-  UserPlus, 
-  Trash2, 
-  ShieldCheck,
-  Menu,
-  X,
-  LogOut,
-  Loader2,
-  Search,
-  Filter,
-  ArrowUpRight,
-  TrendingUp,
-  Activity,
-  History,
-  MoreVertical,
-  Bell,
-  RefreshCcw,
-  CheckCircle2,
-  AlertCircle,
-  Edit3,
-  Ban,
-  Unlock,
-  Calendar
+  Users, Package, Activity, ShieldAlert, RefreshCcw, 
+  LayoutDashboard, Settings, History, Menu, Bell, 
+  UserPlus, Trash2, Ban, CheckCircle2, Search, Edit3, X, Filter,
+  Camera, Upload
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-type UserProfile = {
-  user_id: string;
-  full_name: string;
-  role: "superadmin" | "admin_gudang" | "kurir";
-  created_at: string;
-  is_blocked?: boolean;
-};
+import { LogoutButton } from "./logout-button";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function SuperadminPanel() {
-  const [activeTab, setActiveTab] = useState<"users" | "analytics" | "activity">("users");
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [activeTab, setActiveTab] = useState("staff");
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [data, setData] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [refreshing, setRefreshing] = useState(false);
-  const router = useRouter();
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // UI States
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [logSearch, setLogSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
-  // Form states
-  const [formData, setFormData] = useState({ fullName: "", email: "", password: "", role: "kurir" });
-  const [editFormData, setEditFormData] = useState({ fullName: "", role: "kurir", is_blocked: false });
+  const [form, setForm] = useState({ 
+    email: '', 
+    password: '', 
+    full_name: '', 
+    role: 'kurir',
+    phone: '',
+    employee_id: '',
+    address: '',
+    avatar_url: ''
+  });
 
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (roleFilter !== "all") count++;
-    if (statusFilter !== "all") count++;
-    return count;
-  }, [roleFilter, statusFilter]);
+  const supabase = createSupabaseBrowserClient();
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    setRefreshing(true);
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/superadmin/users");
-      const json = await res.json();
-      if (json.ok) setUsers(json.data);
+      const [analyticsRes, usersRes, logsRes] = await Promise.all([
+        fetch("/api/superadmin/analytics"),
+        fetch("/api/superadmin/users"),
+        fetch("/api/superadmin/activity-logs")
+      ]);
+      const aData = await analyticsRes.json();
+      const uData = await usersRes.json();
+      const lData = await logsRes.json();
+      if (aData.ok) setData(aData.data);
+      if (uData.ok) setUsers(uData.data);
+      if (lData.ok) setLogs(lData.data.logs);
     } catch (err) {
-      console.error("Gagal memuat data pengguna");
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesRole = roleFilter === "all" || user.role === roleFilter;
-      const matchesStatus = statusFilter === "all" || 
-                           (statusFilter === "blocked" ? user.is_blocked : !user.is_blocked);
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [users, searchQuery, roleFilter, statusFilter]);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch("/api/superadmin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const json = await res.json();
-      if (json.ok) {
-        setIsModalOpen(false);
-        setFormData({ fullName: "", email: "", password: "", role: "kurir" });
-        fetchUsers();
-      } else alert(json.error?.message || "Gagal membuat user");
-    } catch (err) { alert("Terjadi kesalahan sistem"); }
-    finally { setLoading(false); }
-  };
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/superadmin/users/${selectedUser.user_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editFormData),
-      });
-      const json = await res.json();
-      if (json.ok) {
-        setIsEditModalOpen(false);
-        fetchUsers();
-      } else alert(json.error?.message || "Gagal memperbarui user");
-    } catch (err) { alert("Terjadi kesalahan sistem"); }
-    finally { setLoading(false); }
-  };
-
-  const toggleBlockUser = async (user: UserProfile) => {
-    const action = user.is_blocked ? "Mengaktifkan" : "Memblokir";
-    if (!confirm(`${action} akun ${user.full_name}?`)) return;
+    const url = editingUser ? `/api/superadmin/users/${editingUser.user_id}` : "/api/superadmin/users";
+    const method = editingUser ? "PATCH" : "POST";
     
-    try {
-      const res = await fetch(`/api/superadmin/users/${user.user_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          fullName: user.full_name, 
-          role: user.role, 
-          is_blocked: !user.is_blocked 
-        }),
-      });
-      if (res.ok) fetchUsers();
-    } catch (err) { alert("Gagal mengubah status blokir"); }
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    if (!confirm("Hapus akun ini secara permanen?")) return;
-    try {
-      const res = await fetch(`/api/superadmin/users/${id}`, { method: "DELETE" });
-      if (res.ok) fetchUsers();
-      else alert("Gagal menghapus user");
-    } catch (err) { alert("Terjadi kesalahan sistem"); }
-  };
-
-  const openEditModal = (user: UserProfile) => {
-    setSelectedUser(user);
-    setEditFormData({ 
-      fullName: user.full_name, 
-      role: user.role as any, 
-      is_blocked: !!user.is_blocked 
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
     });
-    setIsEditModalOpen(true);
+
+    if (res.ok) {
+      closeModal();
+      fetchData();
+    }
   };
 
-  const formatDateFull = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString("id-ID", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingUser(null);
+    setForm({ email: '', password: '', full_name: '', role: 'kurir', phone: '', employee_id: '', address: '' });
+  };
+
+  const openEditModal = (user: any) => {
+    setEditingUser(user);
+    setForm({ 
+      email: user.email || '', 
+      password: '', 
+      full_name: user.full_name, 
+      role: user.role,
+      phone: user.phone || '',
+      employee_id: user.employee_id || '',
+      address: user.address || '',
+      avatar_url: user.avatar_url || ''
     });
+    setModalOpen(true);
   };
 
-  const NavItem = ({ id, label, icon: Icon }: any) => (
-    <button
-      onClick={() => { setActiveTab(id); setIsSidebarOpen(false); }}
-      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
-        activeTab === id 
-          ? "bg-orange-500 text-white shadow-lg orange-shadow" 
-          : "text-orange-200/50 hover:bg-white/5 hover:text-orange-400"
-      }`}
-    >
-      <Icon size={20} />
-      <span className="font-semibold tracking-wide">{label}</span>
-      {activeTab === id && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-    </button>
-  );
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingUser) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${editingUser.user_id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setForm(prev => ({ ...prev, avatar_url: publicUrl }));
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleToggleSuspend = async (user: any) => {
+    await fetch(`/api/superadmin/users/${user.user_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        ...user,
+        is_suspended: !user.is_suspended 
+      }),
+    });
+    fetchData();
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Hapus akun secara permanen?")) return;
+    await fetch(`/api/superadmin/users/${userId}`, {
+      method: "DELETE",
+    });
+    fetchData();
+  };
+
+  // Filter Logic
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         (u.employee_id && u.employee_id.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  if (loading && !data) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7]"><RefreshCcw className="animate-spin text-blue-500" /></div>;
+  }
 
   return (
-    <div className="min-h-screen bg-[#0f0a05] text-[#fffcf0] flex overflow-hidden font-sans">
-      {/* Background Decor */}
-      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-600/10 blur-[120px] rounded-full z-0" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-800/10 blur-[120px] rounded-full z-0" />
-
-      {/* Sidebar Mobile Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 w-72 glass border-r border-white/5 z-[70] transform transition-all duration-500 lg:translate-x-0
-        ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-      `}>
-        <div className="p-8 h-full flex flex-col">
-          <div className="flex items-center space-x-3 mb-12">
-            <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center shadow-lg orange-shadow rotate-3 hover:rotate-0 transition-transform">
-              <Package className="text-white" size={28} />
-            </div>
-            <div>
-              <span className="text-2xl font-black tracking-tighter block leading-none">NEKO</span>
-              <span className="text-orange-500 text-sm font-bold tracking-widest uppercase">Logistik</span>
-            </div>
+    <div className="flex min-h-screen bg-[#F5F5F7] font-sans text-slate-900 selection:bg-blue-100">
+      {/* SIDEBAR */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-white/80 backdrop-blur-3xl transition-transform duration-300 ease-in-out border-r border-white/40 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0`}>
+        <div className="flex h-full flex-col p-8">
+          <div className="mb-12 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 shadow-xl shadow-blue-500/30 text-white"><Package size={20} /></div>
+            <span className="text-2xl font-black tracking-tighter">NEKO<span className="text-blue-600">LOG.</span></span>
           </div>
-
-          <nav className="flex-1 space-y-3">
-            <NavItem id="users" label="Kelola Akun" icon={Users} />
-            <NavItem id="analytics" label="Statistik" icon={BarChart3} />
-            <NavItem id="activity" label="Riwayat Sesi" icon={History} />
+          <nav className="flex-1 space-y-2">
+            <SidebarItem icon={<Users size={18}/>} label="Staff Management" active={activeTab === "staff"} onClick={() => setActiveTab("staff")} />
+            <SidebarItem icon={<LayoutDashboard size={18}/>} label="System Overview" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+            <SidebarItem icon={<History size={18}/>} label="Audit Trail" active={activeTab === "logs"} onClick={() => setActiveTab("logs")} />
           </nav>
-
-          <div className="mt-auto pt-8 border-t border-white/5">
-            <button 
-              onClick={() => { fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); }}
-              className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-2xl transition-colors group"
-            >
-              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="font-bold">Keluar</span>
-            </button>
-          </div>
+          <div className="pt-6 border-t border-slate-100"><LogoutButton /></div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 relative overflow-y-auto z-10">
-        <header className="h-20 glass border-b border-white/5 sticky top-0 z-50 flex items-center justify-between px-8">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-white/5 rounded-xl text-orange-200">
-            <Menu size={24} />
-          </button>
-          <h1 className="text-lg font-bold hidden sm:block">Dashboard Superadmin</h1>
-          <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white font-black shadow-lg orange-shadow border-2 border-white/10">SA</div>
+      {/* MAIN CONTENT */}
+      <main className="flex-1 relative">
+        <header className="sticky top-0 z-40 flex h-24 items-center justify-between px-12 bg-[#F5F5F7]/80 backdrop-blur-xl border-b border-white/40">
+          <h2 className="text-sm font-black uppercase tracking-[0.3em] text-slate-400">{activeTab}</h2>
+          <div className="flex items-center gap-4">
+            <button onClick={fetchData} className="p-3 rounded-2xl bg-white shadow-sm border border-white hover:scale-105 transition-all"><RefreshCcw size={18} className="text-slate-600" /></button>
+            <div className="h-11 w-11 rounded-2xl bg-white border border-white flex items-center justify-center shadow-sm"><Bell size={18} className="text-slate-500" /></div>
+          </div>
         </header>
 
-        <div className="p-8 max-w-7xl mx-auto">
-          {activeTab === "users" && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                  <h2 className="text-3xl font-black mb-1">Manajemen User</h2>
-                  <p className="text-orange-100/40 text-sm">Kelola, blokir, dan pantau akses personel</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Search Input */}
-                  <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-200/30 group-focus-within:text-orange-500 transition-colors" size={18} />
-                    <input 
-                      type="text" placeholder="Cari nama..." value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="glass-orange rounded-2xl pl-12 pr-6 py-3 text-sm min-w-[240px] focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all placeholder:text-orange-200/20"
-                    />
-                  </div>
-                  
-                  {/* Single Filter Button */}
-                  <button 
-                    onClick={() => setIsFilterModalOpen(true)}
-                    className={`relative p-3 rounded-2xl border transition-all ${
-                      activeFilterCount > 0 
-                      ? "bg-orange-500 border-orange-500 text-white shadow-lg orange-shadow" 
-                      : "glass text-orange-200/50 hover:text-orange-400 border-white/5"
-                    }`}
-                  >
-                    <Filter size={20} />
-                    {activeFilterCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-orange-500 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0f0a05]">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </button>
+        <div className="p-12">
+          {activeTab === "dashboard" && (
+            <div className="space-y-12">
+              <div>
+                <h1 className="text-5xl font-extrabold tracking-tight mb-2">System Pulse.</h1>
+                <p className="text-slate-500 font-medium">Real-time logistics analytics and throughput.</p>
+              </div>
 
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl flex items-center space-x-2 transition-all shadow-lg orange-shadow font-black text-sm"
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <StatCard label="Live Packages" value={data?.stats?.total} sub="Total registered" icon={<Package className="text-blue-600" />} />
+                <StatCard label="Success Rate" value={data?.stats?.delivered} sub="Delivered packages" icon={<CheckCircle2 className="text-green-600" />} />
+                <StatCard label="Active Flow" value={data?.stats?.in_transit} sub="Currently in transit" icon={<Activity className="text-orange-600" />} />
+                <StatCard label="Backlog" value={data?.stats?.pending} sub="Awaiting processing" icon={<RefreshCcw className="text-slate-400" />} />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Workload Chart (Last 24h) */}
+                <div className="lg:col-span-2 rounded-[2.5rem] bg-white border border-white p-10 shadow-xl">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-8">Logistics Throughput (24h)</h3>
+                  <div className="flex items-end gap-2 h-48">
+                    {data?.hourlyWorkload?.map((item: any, i: number) => (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                        <div 
+                          className="w-full bg-blue-50 rounded-t-lg group-hover:bg-blue-600 transition-all duration-500 relative" 
+                          style={{ height: `${(item.count / (Math.max(...data.hourlyWorkload.map((h: any) => h.count)) || 1)) * 100}%` }}
+                        >
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            {item.count}
+                          </div>
+                        </div>
+                        <span className="text-[8px] font-black text-slate-300 rotate-45 mt-2">{item.hour}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Courier Productivity */}
+                <div className="rounded-[2.5rem] bg-slate-900 text-white p-10 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-12 opacity-10"><ShieldAlert size={120} /></div>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-8">Elite Performers</h3>
+                  <div className="space-y-6 relative z-10">
+                    {data?.courierStats?.map((c: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-white/40">{i+1}</div>
+                          <div>
+                            <p className="font-bold text-sm">{c.name}</p>
+                            <p className="text-[10px] text-slate-500 uppercase font-black">Courier Unit</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-black text-blue-400">{c.delivered}</p>
+                          <p className="text-[8px] text-slate-500 uppercase font-black">Drops</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "logs" && (
+            <div className="space-y-8">
+              <div>
+                <h1 className="text-5xl font-extrabold tracking-tight mb-2">Audit Trail.</h1>
+                <p className="text-slate-500 font-medium">Immutable record of all system state changes.</p>
+              </div>
+
+              <div className="relative group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Filter by action, entity, or ID..." 
+                  className="w-full bg-white border border-white rounded-2xl py-4 pl-14 pr-6 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={logSearch}
+                  onChange={(e) => setLogSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="rounded-[2.5rem] bg-white border border-white overflow-hidden shadow-xl">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="px-8 py-5">Timestamp</th>
+                      <th className="px-8 py-5">Actor</th>
+                      <th className="px-8 py-5">Action</th>
+                      <th className="px-8 py-5">Target</th>
+                      <th className="px-8 py-5">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {logs.filter(l => 
+                      l.action.toLowerCase().includes(logSearch.toLowerCase()) || 
+                      l.entity.toLowerCase().includes(logSearch.toLowerCase()) ||
+                      l.actor_name.toLowerCase().includes(logSearch.toLowerCase())
+                    ).map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-5 text-[10px] font-mono text-slate-400">
+                          {new Date(log.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 uppercase">
+                              {log.actor_name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-700">{log.actor_name}</p>
+                              <p className="text-[8px] font-black uppercase text-slate-400 tracking-tighter">{log.actor_role}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded-md">{log.action}</span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <p className="text-xs font-bold text-slate-600">{log.entity}</p>
+                          <p className="text-[9px] font-mono text-slate-400">{log.entity_id}</p>
+                        </td>
+                        <td className="px-8 py-5">
+                          <pre className="text-[9px] font-mono text-slate-400 max-w-[200px] truncate">
+                            {JSON.stringify(log.metadata)}
+                          </pre>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "staff" && (
+            <div className="space-y-8">
+              <div className="flex items-end justify-between">
+                <div>
+                  <h1 className="text-5xl font-extrabold tracking-tight mb-2">Staff Registry.</h1>
+                  <p className="text-slate-500 font-medium">Create, edit, and manage operator identities.</p>
+                </div>
+                <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-4 rounded-[1.5rem] font-bold shadow-xl shadow-blue-500/30 hover:scale-105 transition-all"><UserPlus size={18} /> Add Staff Member</button>
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Search name or employee ID..." 
+                    className="w-full bg-white border border-white rounded-2xl py-4 pl-14 pr-6 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 bg-white rounded-2xl px-4 border border-white shadow-sm">
+                  <Filter size={16} className="text-slate-400" />
+                  <select 
+                    className="bg-transparent border-none py-4 text-xs font-black uppercase tracking-widest text-slate-600 focus:ring-0"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
                   >
-                    <UserPlus size={18} />
-                    <span>User Baru</span>
-                  </button>
+                    <option value="all">All Roles</option>
+                    <option value="kurir">Kurir</option>
+                    <option value="admin_gudang">Admin Gudang</option>
+                    <option value="superadmin">Superadmin</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {loading ? Array(3).fill(0).map((_, i) => <div key={i} className="h-64 glass rounded-[2.5rem] animate-pulse" />) :
-                  filteredUsers.map((user) => (
-                    <div key={user.user_id} className={`group relative glass rounded-[2.5rem] p-8 transition-all duration-500 ${user.is_blocked ? 'grayscale opacity-60 border-red-500/20' : 'hover:-translate-y-2'}`}>
-                      <div className="absolute top-8 right-8 flex items-center space-x-2">
-                        <button onClick={() => openEditModal(user)} className="p-2 rounded-xl bg-orange-500/10 text-orange-400 hover:bg-orange-500 hover:text-white transition-all">
-                          <Edit3 size={16} />
-                        </button>
-                        <button onClick={() => toggleBlockUser(user)} className={`p-2 rounded-xl transition-all ${user.is_blocked ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white' : 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white'}`}>
-                          {user.is_blocked ? <Unlock size={16} /> : <Ban size={16} />}
-                        </button>
-                        {user.role !== 'superadmin' && (
-                          <button onClick={() => handleDeleteUser(user.user_id)} className="p-2 rounded-xl bg-white/5 text-gray-400 hover:bg-red-600 hover:text-white transition-all">
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 ${
-                        user.is_blocked ? 'bg-red-500/20 text-red-400' :
-                        user.role === 'superadmin' ? 'bg-orange-500 text-white orange-shadow' : 'bg-orange-500/10 text-orange-400'
-                      }`}>
-                        {user.is_blocked ? <Ban size={28} /> : user.role === 'superadmin' ? <ShieldCheck size={28} /> : <Users size={28} />}
-                      </div>
-
-                      <div className="space-y-1 mb-6">
-                        <div className="flex items-center space-x-2">
-                          <h3 className="font-black text-xl">{user.full_name}</h3>
-                          {user.is_blocked && <span className="bg-red-500 text-[8px] font-black px-1.5 py-0.5 rounded text-white uppercase">Blocked</span>}
-                        </div>
-                        <p className="text-orange-500 text-[10px] font-black uppercase tracking-[0.2em]">{user.role.replace('_', ' ')}</p>
-                      </div>
-
-                      <div className="pt-6 border-t border-white/5">
-                        <div className="flex items-center space-x-2 text-orange-100/30 mb-1">
-                          <Calendar size={12} />
-                          <p className="text-[10px] font-black uppercase tracking-widest">Terdaftar Pada</p>
-                        </div>
-                        <p className="text-xs font-medium text-orange-100/60">{formatDateFull(user.created_at)}</p>
-                      </div>
-                    </div>
-                  ))
-                }
+              {/* Table */}
+              <div className="rounded-[2.5rem] bg-white/70 backdrop-blur-2xl border border-white p-4 shadow-xl">
+                <table className="w-full text-left border-separate border-spacing-y-3">
+                  <thead>
+                    <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <th className="px-6 py-4">Personnel</th>
+                      <th className="px-6 py-4">Role</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((user: any) => (
+                      <tr key={user.user_id} className="group bg-white/40 hover:bg-white transition-all rounded-3xl">
+                        <td className="px-6 py-5 rounded-l-[1.5rem]">
+                          <div className="flex items-center gap-4">
+                            {user.avatar_url ? (
+                              <img src={user.avatar_url} alt={user.full_name} className="h-12 w-12 rounded-2xl object-cover shadow-sm" />
+                            ) : (
+                              <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center font-bold text-slate-400 uppercase">{user.full_name.charAt(0)}</div>
+                            )}
+                            <div>
+                              <p className="font-bold text-slate-800">{user.full_name}</p>
+                              <p className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase">{user.employee_id || 'NO ID'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${user.role === 'superadmin' ? 'bg-slate-900 text-white' : user.role === 'admin_gudang' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>{user.role}</span>
+                        </td>
+                        <td className="px-6 py-5">
+                          <span className={`flex items-center gap-1.5 font-bold text-xs uppercase tracking-tighter ${user.is_suspended ? 'text-red-500' : 'text-green-600'}`}>
+                            {user.is_suspended ? <Ban size={14} /> : <CheckCircle2 size={14} />} {user.is_suspended ? 'Suspended' : 'Active'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 rounded-r-[1.5rem] text-right">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => openEditModal(user)} className="p-2 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" title="Edit Profile"><Edit3 size={16} /></button>
+                            <button onClick={() => handleToggleSuspend(user)} className={`p-2 rounded-xl transition-colors ${user.is_suspended ? 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white' : 'bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white'}`} title={user.is_suspended ? "Unsuspend" : "Suspend"}><Ban size={16} /></button>
+                            <button onClick={() => handleDeleteUser(user.user_id)} className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-colors" title="Delete Account"><Trash2 size={16} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
         </div>
       </main>
 
-      {/* Filter Modal */}
-      {isFilterModalOpen && (
-        <Modal title="Parameter Filter" onClose={() => setIsFilterModalOpen(false)}>
-          <div className="space-y-10">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 ml-1">
-                <ShieldCheck size={14} className="text-orange-500" />
-                <label className="text-[11px] font-black text-orange-400 uppercase tracking-widest">Jabatan Personel</label>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {(['all', 'superadmin', 'admin_gudang', 'kurir'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRoleFilter(r)}
-                    className={`px-4 py-4 rounded-2xl text-[11px] font-bold capitalize border-2 transition-all duration-300 ${
-                      roleFilter === r 
-                      ? "bg-orange-500 border-white/20 text-white shadow-lg orange-shadow scale-[1.02]" 
-                      : "bg-white/5 border-white/5 text-orange-100/30 hover:border-orange-500/30 hover:text-orange-300"
-                    }`}
-                  >
-                    {r === 'all' ? 'Semua Jabatan' : r.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 ml-1">
-                <Activity size={14} className="text-orange-500" />
-                <label className="text-[11px] font-black text-orange-400 uppercase tracking-widest">Status Keaktifan</label>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {(['all', 'active', 'blocked'] as const).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`px-4 py-4 rounded-2xl text-[11px] font-bold capitalize border-2 transition-all duration-300 ${
-                      statusFilter === s 
-                      ? "bg-orange-500 border-white/20 text-white shadow-lg orange-shadow scale-[1.02]" 
-                      : "bg-white/5 border-white/5 text-orange-100/30 hover:border-orange-500/30 hover:text-orange-300"
-                    }`}
-                  >
-                    {s === 'all' ? 'Semua' : s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-6 border-t border-white/10">
-              <button 
-                onClick={() => { setRoleFilter('all'); setStatusFilter('all'); }}
-                className="flex-1 px-4 py-4.5 rounded-3xl bg-white/5 border-2 border-white/5 text-[11px] font-black uppercase text-orange-200/40 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all active:scale-95"
-              >
-                Reset
-              </button>
-              <button 
-                onClick={() => setIsFilterModalOpen(false)}
-                className="flex-[2] bg-orange-500 text-white px-4 py-4.5 rounded-3xl text-[11px] font-black uppercase shadow-xl orange-shadow border-2 border-white/20 hover:bg-orange-400 transition-all active:scale-95 flex items-center justify-center space-x-2"
-              >
-                <CheckCircle2 size={16} />
-                <span>Terapkan Filter</span>
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal Tambah User */}
+      {/* MODAL (Create & Edit) */}
       {isModalOpen && (
-        <Modal title="Personel Baru" onClose={() => setIsModalOpen(false)}>
-          <form onSubmit={handleCreateUser} className="space-y-6">
-            <Input label="Nama Lengkap" value={formData.fullName} onChange={(v: string) => setFormData({...formData, fullName: v})} placeholder="Galih Wijaya" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Input label="Email" type="email" value={formData.email} onChange={(v: string) => setFormData({...formData, email: v})} placeholder="email@neko.com" />
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 ml-1">
-                  <ShieldCheck size={12} className="text-orange-500" />
-                  <label className="text-[11px] font-black text-orange-400 uppercase tracking-wider">Jabatan</label>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-6">
+          <div className="w-full max-w-2xl bg-white rounded-[3rem] p-10 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <button onClick={closeModal} className="absolute top-8 right-8 p-2 rounded-2xl hover:bg-slate-50"><X size={24} className="text-slate-400" /></button>
+            <h2 className="text-3xl font-black tracking-tight mb-2">{editingUser ? 'Edit Personnel.' : 'New Staff Member.'}</h2>
+            <p className="text-slate-500 mb-8 font-medium text-sm">Identity and terminal access authorization.</p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {editingUser && (
+                <div className="flex flex-col items-center justify-center gap-4 mb-8">
+                  <div className="relative group">
+                    <div className="h-32 w-32 rounded-[2.5rem] bg-slate-100 overflow-hidden border-4 border-white shadow-xl">
+                      {form.avatar_url ? (
+                        <img src={form.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-3xl font-black text-slate-300">
+                          {form.full_name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                      <Camera size={32} />
+                      <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
+                    </label>
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {isUploading ? 'Uploading...' : 'Tap to change photo'}
+                  </p>
                 </div>
-                <div className="relative">
-                  <select 
-                    value={formData.role} 
-                    onChange={e => setFormData({...formData, role: e.target.value})}
-                    className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-5 py-4 text-white outline-none focus:ring-2 focus:ring-orange-500/50 appearance-none transition-all cursor-pointer"
-                  >
-                    <option value="kurir" className="bg-[#1a140f]">Kurir</option>
-                    <option value="admin_gudang" className="bg-[#1a140f]">Admin Gudang</option>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Personnel Name</label>
+                  <input required value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} type="text" className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Employee ID / NIP</label>
+                  <input value={form.employee_id} onChange={e => setForm({...form, employee_id: e.target.value})} type="text" placeholder="NEKO-12345" className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+                </div>
+              </div>
+
+              {!editingUser && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Email Address</label>
+                    <input required value={form.email} onChange={e => setForm({...form, email: e.target.value})} type="email" className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Security Password</label>
+                    <input required value={form.password} onChange={e => setForm({...form, password: e.target.value})} type="password" placeholder="••••••••" className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Terminal Role</label>
+                  <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all">
+                    <option value="kurir">Kurir / Courier</option>
+                    <option value="admin_gudang">Admin Gudang</option>
+                    <option value="superadmin">Superadmin</option>
                   </select>
-                  <MoreVertical size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Phone Number</label>
+                  <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} type="tel" placeholder="+62..." className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all" />
                 </div>
               </div>
-            </div>
-            <Input label="Password" type="password" value={formData.password} onChange={(v: string) => setFormData({...formData, password: v})} placeholder="••••••••" />
-            <SubmitButton loading={loading} label="Aktifkan Akun" />
-          </form>
-        </Modal>
-      )}
 
-      {/* Modal Edit User */}
-      {isEditModalOpen && (
-        <Modal title="Edit Akun" onClose={() => setIsEditModalOpen(false)}>
-          <form onSubmit={handleUpdateUser} className="space-y-6">
-            <Input label="Nama Lengkap" value={editFormData.fullName} onChange={(v: string) => setEditFormData({...editFormData, fullName: v})} />
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 ml-1">
-                <ShieldCheck size={12} className="text-orange-500" />
-                <label className="text-[11px] font-black text-orange-400 uppercase tracking-wider">Jabatan</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Residential Address</label>
+                <textarea value={form.address} onChange={e => setForm({...form, address: e.target.value})} rows={3} className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold focus:ring-2 focus:ring-blue-500 transition-all resize-none"></textarea>
               </div>
-              <div className="relative">
-                <select 
-                  value={editFormData.role} 
-                  onChange={e => setEditFormData({...editFormData, role: e.target.value as any})}
-                  disabled={selectedUser?.role === 'superadmin'}
-                  className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-5 py-4 text-white outline-none focus:ring-2 focus:ring-orange-500/50 appearance-none transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <option value="kurir" className="bg-[#1a140f]">Kurir</option>
-                  <option value="admin_gudang" className="bg-[#1a140f]">Admin Gudang</option>
-                  <option value="superadmin" className="bg-[#1a140f]">Superadmin</option>
-                </select>
-                <MoreVertical size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-5 bg-white/5 border-2 border-orange-500/10 rounded-2xl transition-colors hover:border-orange-500/30">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${editFormData.is_blocked ? "bg-red-500/20 text-red-500" : "bg-orange-500/10 text-orange-400"}`}>
-                  <Ban size={20} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold">Status Blokir Akun</span>
-                  <span className="text-[10px] font-medium text-white/30 tracking-tight">{editFormData.is_blocked ? "Akses ditangguhkan" : "Akses aktif"}</span>
-                </div>
-              </div>
-              <input 
-                type="checkbox" checked={editFormData.is_blocked} 
-                onChange={e => setEditFormData({...editFormData, is_blocked: e.target.checked})}
-                className="w-6 h-6 accent-orange-500 cursor-pointer shadow-lg"
-              />
-            </div>
-            <SubmitButton loading={loading} label="Simpan Perubahan" />
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
-}
 
-// Reusable Components
-function Modal({ title, children, onClose }: any) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/95 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose} />
-      <div className="relative bg-[#0f0a05] border-2 border-white/10 w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-10 border-b border-white/5 flex items-center justify-between bg-gradient-to-br from-orange-500/10 to-transparent">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] mb-1">Pengaturan</span>
-            <h3 className="text-2xl font-black text-white leading-none">{title}</h3>
+              <button type="submit" className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all">
+                {editingUser ? 'Commit Changes' : 'Authorize Personnel'}
+              </button>
+            </form>
           </div>
-          <button onClick={onClose} className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl text-orange-200/50 hover:text-white hover:bg-red-500/20 transition-all">
-            <X size={24} />
-          </button>
         </div>
-        <div className="p-10">{children}</div>
-      </div>
+      )}
     </div>
   );
 }
 
-function Input({ label, value, onChange, type = "text", placeholder }: any) {
+function SidebarItem({ icon, label, active, onClick }: any) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center space-x-2 ml-1">
-        <div className="w-1 h-1 bg-orange-500 rounded-full" />
-        <label className="text-[11px] font-black text-orange-400 uppercase tracking-wider">{label}</label>
-      </div>
-      <input 
-        required type={type} value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-4.5 focus:ring-2 focus:ring-orange-500/50 focus:border-transparent outline-none text-white placeholder:text-white/10 transition-all font-medium"
-        placeholder={placeholder}
-      />
-    </div>
-  );
-}
-
-function SubmitButton({ loading, label }: any) {
-  return (
-    <button 
-      disabled={loading} type="submit"
-      className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-5 rounded-[2rem] mt-4 transition-all flex items-center justify-center space-x-3 shadow-xl orange-shadow active:scale-95 border-2 border-white/20"
-    >
-      {loading ? <Loader2 className="animate-spin text-white" /> : <><CheckCircle2 size={20} /><span>{label}</span></>}
+    <button onClick={onClick} className={`flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-[10px] font-black tracking-widest uppercase transition-all ${active ? "bg-blue-600 text-white shadow-xl shadow-blue-500/40 scale-[1.02]" : "text-slate-400 hover:bg-white hover:text-blue-600"}`}>
+      {icon}
+      <span>{label}</span>
     </button>
   );
 }
 
+function StatCard({ label, value, sub, icon }: any) {
+  return (
+    <div className="rounded-[2rem] bg-white border border-white p-8 shadow-sm hover:shadow-xl transition-all group">
+      <div className="flex items-start justify-between mb-4">
+        <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+          {icon}
+        </div>
+      </div>
+      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</h4>
+      <p className="text-3xl font-black text-slate-800 mb-1">{value}</p>
+      <p className="text-[10px] font-medium text-slate-400">{sub}</p>
+    </div>
+  );
+}

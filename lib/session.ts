@@ -7,6 +7,11 @@ export type SessionProfile = {
   userId: string;
   role: AppRole;
   fullName: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  employeeId?: string | null;
+  address?: string | null;
+  isSuspended: boolean;
 };
 
 export async function getSessionProfile() {
@@ -24,6 +29,7 @@ export async function getSessionProfile() {
     return null;
   }
 
+  // We select only known columns to prevent crash if migrations haven't run
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, full_name")
@@ -34,10 +40,16 @@ export async function getSessionProfile() {
     return null;
   }
 
+  // Default values for new columns
   return {
     userId: user.id,
     role: profile.role as AppRole,
     fullName: String(profile.full_name),
+    avatarUrl: (profile as any).avatar_url ?? null,
+    phone: (profile as any).phone ?? null,
+    employeeId: (profile as any).employee_id ?? null,
+    address: (profile as any).address ?? null,
+    isSuspended: (profile as any).is_suspended ?? false,
   } satisfies SessionProfile;
 }
 

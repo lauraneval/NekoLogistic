@@ -14,23 +14,34 @@ export async function PATCH(
 
   const supabaseAdmin = createSupabaseAdminClient();
 
-  // Jika mencoba blokir diri sendiri
-  if (id === auth.data.userId && body.is_blocked === true) {
-    return fail("Anda tidak bisa memblokir akun sendiri", 400);
+  // Prevent self-suspension
+  if (id === auth.data.userId && body.is_suspended === true) {
+    return fail("Anda tidak bisa menonaktifkan akun sendiri", 400);
   }
 
   const { data, error } = await supabaseAdmin
     .from("profiles")
     .update({
-      full_name: body.fullName,
+      full_name: body.full_name,
       role: body.role,
-      is_blocked: body.is_blocked
+      is_suspended: body.is_suspended,
+      phone: body.phone,
+      employee_id: body.employee_id,
+      address: body.address,
+      avatar_url: body.avatar_url
     })
     .eq("user_id", id)
     .select()
     .single();
 
   if (error) return fail(error.message, 500);
+
+  // If role changed, also update auth app_metadata for consistency
+  if (body.role) {
+    await supabaseAdmin.auth.admin.updateUserById(id, {
+      app_metadata: { role: body.role }
+    });
+  }
 
   return ok({ success: true, data });
 }
