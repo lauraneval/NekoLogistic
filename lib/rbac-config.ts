@@ -14,6 +14,7 @@ export const RBAC_CONFIG: Record<string, AppRole[]> = {
 };
 
 export const PUBLIC_ROUTES = [
+  "/",
   "/login",
   "/tracking",
   "/api/auth/login",

@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { UserPlus, Search, Filter, Edit3, Ban, Trash2, CheckCircle2 } from 'lucide-react';
 
 interface StaffSectionProps {
@@ -88,7 +89,9 @@ export function StaffSection({
                   <td className="px-6 py-4 rounded-l-[1.5rem]">
                     <div className="flex items-center gap-4">
                       {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.full_name} className="h-12 w-12 rounded-xl object-cover shadow-md border border-white/10" />
+                        <div className="h-12 w-12 rounded-xl overflow-hidden shadow-md border border-white/10">
+                          <img src={user.avatar_url} alt={user.full_name} className="h-full w-full object-cover" />
+                        </div>
                       ) : (
                         <div className="h-12 w-12 rounded-xl bg-slate-800 border border-white/5 flex items-center justify-center text-lg font-black text-slate-400 uppercase">{user.full_name.charAt(0)}</div>
                       )}
