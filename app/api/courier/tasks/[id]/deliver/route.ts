@@ -3,6 +3,9 @@ import { mobileError, mobileMessage } from "@/lib/mobile-api";
 import { authenticateMobileRequest } from "@/lib/mobile-auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const POD_BUCKET = "proof-of-delivery";
+const MAX_POD_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+
 const deliverSchema = z.object({
   status: z.literal("DELIVERED"),
   pod_image_url: z.string().trim().min(1).max(2048),
@@ -12,6 +15,90 @@ const deliverSchema = z.object({
   target_longitude: z.coerce.number().min(-180).max(180).optional(),
   delivered_at: z.string().datetime().optional(),
 });
+
+function getExtension(file: File) {
+  const mimeExt = file.type.startsWith("image/") ? file.type.replace("image/", "") : "";
+  if (mimeExt) {
+    return mimeExt;
+  }
+
+  const nameParts = file.name.split(".");
+  return nameParts.length > 1 ? nameParts[nameParts.length - 1].toLowerCase() : "jpg";
+}
+
+export async function POST(req: Request, ctx: RouteContext<"/api/courier/tasks/[id]/deliver">) {
+  const auth = await authenticateMobileRequest(req, ["kurir", "superadmin", "admin_gudang"]);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const { id } = await ctx.params;
+
+  let formData: FormData;
+
+  try {
+    formData = await req.formData();
+  } catch {
+    return mobileError("Invalid form data", 400);
+  }
+
+  const fileInput = formData.get("file");
+
+  if (!(fileInput instanceof File)) {
+    return mobileError("file is required", 400);
+  }
+
+  if (!fileInput.type.startsWith("image/")) {
+    return mobileError("file must be an image", 400);
+  }
+
+  if (fileInput.size <= 0) {
+    return mobileError("file is empty", 400);
+  }
+
+  if (fileInput.size > MAX_POD_IMAGE_SIZE_BYTES) {
+    return mobileError("file is too large", 400);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: existingTask, error: taskError } = await supabase
+    .from("packages")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (taskError) {
+    return mobileError("Internal server error", 500);
+  }
+
+  if (!existingTask) {
+    return mobileError("Task not found", 404);
+  }
+
+  const extension = getExtension(fileInput);
+  const objectPath = `${id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const bytes = await fileInput.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from(POD_BUCKET)
+    .upload(objectPath, bytes, {
+      contentType: fileInput.type,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    return mobileError("Failed to upload image", 500);
+  }
+
+  const { data: publicUrlData } = supabase.storage.from(POD_BUCKET).getPublicUrl(objectPath);
+
+  return mobileMessage("Proof of delivery uploaded", 200, {
+    bucket: POD_BUCKET,
+    object_path: objectPath,
+    pod_image_url: publicUrlData.publicUrl,
+  });
+}
 
 export async function PUT(req: Request, ctx: RouteContext<"/api/courier/tasks/[id]/deliver">) {
   const auth = await authenticateMobileRequest(req, ["kurir", "superadmin", "admin_gudang"]);
