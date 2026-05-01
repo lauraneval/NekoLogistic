@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { packageStatusLabels, type PackageStatus } from "@/lib/types";
 
 type TimelineItem = {
   event_code: string;
@@ -20,6 +21,10 @@ type TrackingResult = {
   };
   timeline: TimelineItem[];
 };
+
+function displayStatus(status: string) {
+  return packageStatusLabels[status as PackageStatus] ?? status;
+}
 
 export function TrackingPortal() {
   const [resi, setResi] = useState("");
@@ -78,7 +83,7 @@ export function TrackingPortal() {
         <div className="mt-6 space-y-6">
           <div className="rounded-2xl bg-slate-900 p-4 text-white">
             <p className="text-xs uppercase tracking-[0.2em] text-orange-300">Status Terakhir</p>
-            <p className="mt-1 text-lg font-semibold">{result.package.status}</p>
+            <p className="mt-1 text-lg font-semibold">{displayStatus(result.package.status)}</p>
             <p className="mt-1 text-xs text-slate-300">Resi {result.package.resi}</p>
           </div>
 

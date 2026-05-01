@@ -24,9 +24,11 @@ create table if not exists public.profiles (
 create table if not exists public.packages (
   id uuid primary key default gen_random_uuid(),
   resi text not null unique check (resi ~ '^NEKO-[0-9]{4}-[A-Z0-9]{4}$'),
+  package_name text not null default 'Paket',
   sender_name text not null,
   receiver_name text not null,
   receiver_address text not null,
+  destination_city text not null default 'Belum ditentukan',
   weight_kg numeric(10,2) not null check (weight_kg > 0),
   status package_status not null default 'PACKAGE_CREATED',
   pod_image_url text,
@@ -54,6 +56,7 @@ create table if not exists public.tracking_history (
 create table if not exists public.bags (
   id uuid primary key default gen_random_uuid(),
   bag_code text not null unique check (bag_code ~ '^BAG-[0-9]{4}-[A-Z0-9]{4}$'),
+  destination_city text not null default 'Belum ditentukan',
   status text not null default 'OPEN',
   created_by uuid not null references public.profiles(user_id),
   created_at timestamptz not null default now()
@@ -147,6 +150,7 @@ for each row execute function public.protect_profile_role_change();
 create or replace function public.create_bag_manifest(
   p_bag_code text,
   p_created_by uuid,
+  p_destination_city text,
   p_resi_numbers text[]
 )
 returns jsonb
@@ -169,12 +173,16 @@ begin
     raise exception 'forbidden actor mismatch';
   end if;
 
-  insert into public.bags (bag_code, created_by)
-  values (p_bag_code, p_created_by)
+  insert into public.bags (bag_code, destination_city, created_by)
+  values (p_bag_code, p_destination_city, p_created_by)
   returning id into v_bag_id;
 
   with selected_packages as (
-    select id from public.packages where resi = any(p_resi_numbers)
+    select id
+    from public.packages
+    where resi = any(p_resi_numbers)
+      and lower(destination_city) = lower(p_destination_city)
+      and status = 'PACKAGE_CREATED'
   ), updated_packages as (
     update public.packages p
     set status = 'IN_WAREHOUSE'
@@ -189,6 +197,10 @@ begin
   )
   select count(*) into v_inserted from inserted_items;
 
+  if v_inserted = 0 then
+    raise exception 'no eligible packages for selected destination city';
+  end if;
+
   insert into public.tracking_history (
     package_id,
     event_code,
@@ -200,9 +212,9 @@ begin
   select
     package_id,
     'IN_WAREHOUSE',
-    'Paket masuk ke manifest',
-    'Warehouse',
-    concat('Masuk ke karung ', p_bag_code),
+    'Di bagging',
+    p_destination_city,
+    concat('Masuk ke bagging ', p_bag_code),
     p_created_by
   from public.bag_items
   where bag_id = v_bag_id;
@@ -210,6 +222,7 @@ begin
   return jsonb_build_object(
     'bag_id', v_bag_id,
     'bag_code', p_bag_code,
+    'destination_city', p_destination_city,
     'package_count', v_inserted
   );
 end;
@@ -290,4 +303,4 @@ for select
 to authenticated
 using (public.current_role() = 'superadmin');
 
-grant execute on function public.create_bag_manifest(text, uuid, text[]) to authenticated;
+grant execute on function public.create_bag_manifest(text, uuid, text, text[]) to authenticated;
