@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { makeBagCode } from "@/lib/resi";
 import { createBaggingSchema } from "@/lib/validation";
+import { z } from "zod";
 
 type ManifestResult = {
   bag_id: string;
@@ -22,9 +23,16 @@ type PackageForBagging = {
 type SupabaseAdmin = ReturnType<typeof createSupabaseAdminClient>;
 
 const fullBaggingSelect =
-  "id, bag_code, destination_city, status, created_at, bag_items(created_at, packages(id, resi, package_name, receiver_name, receiver_address, destination_city, status))";
+  "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(created_at, packages(id, resi, package_name, receiver_name, receiver_address, destination_city, status))";
 const legacyBaggingSelect =
   "id, bag_code, status, created_at, bag_items(created_at, packages(id, resi, receiver_name, receiver_address, status))";
+
+const assignBagSchema = z.object({
+  bagId: z.string().trim().min(1),
+  assignedCourierId: z.uuid().nullable().optional(),
+  destinationCity: z.string().trim().min(2).max(120).optional(),
+  packageIds: z.array(z.uuid()).max(500).default([]),
+});
 
 type BaggingRow = Record<string, unknown> & {
   id?: string;
@@ -38,7 +46,7 @@ function normalizeBagCode(input: string | undefined) {
     return makeBagCode();
   }
 
-  const cleaned = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const cleaned = input.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
 
   if (/^BAG\d{4}[A-Z0-9]{4}$/.test(cleaned)) {
     return `BAG-${cleaned.slice(3, 7)}-${cleaned.slice(7, 11)}`;
@@ -63,6 +71,163 @@ function inferCityFromAddress(address: string | null | undefined) {
 
 function packageCity(pkg: PackageForBagging) {
   return (pkg.destination_city ?? "").trim() || inferCityFromAddress(pkg.receiver_address);
+}
+
+function packageDisplayName(pkg: PackageForBagging & Record<string, unknown>) {
+  return typeof pkg.package_name === "string" && pkg.package_name.trim()
+    ? pkg.package_name
+    : `Paket ${pkg.resi}`;
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function updateBagAssignment(
+  supabase: SupabaseAdmin,
+  bagId: string,
+  assignedCourierId: string | null,
+  actorId: string,
+) {
+  const { data: bag, error: bagError } = await supabase
+    .from("bags")
+    .select(
+      "id, bag_code, destination_city, status, assigned_courier_id, bag_items(package_id, packages(id, status, resi, receiver_name, receiver_address, destination_city, target_latitude, target_longitude))",
+    )
+    .eq("id", bagId)
+    .maybeSingle();
+
+  if (bagError || !bag) {
+    throw bagError ?? new Error("Bag not found");
+  }
+
+  const nextBagStatus = assignedCourierId ? "OUT_FOR_DELIVERY" : "OPEN";
+  const bagItems = Array.isArray(bag.bag_items) ? bag.bag_items : [];
+  const packageIds = bagItems
+    .map((item) => (item as { package_id?: string }).package_id)
+    .filter((packageId): packageId is string => Boolean(packageId));
+
+  const { error: updateBagError } = await supabase
+    .from("bags")
+    .update({
+      assigned_courier_id: assignedCourierId,
+      status: nextBagStatus,
+    })
+    .eq("id", bagId);
+
+  if (updateBagError) {
+    throw updateBagError;
+  }
+
+  if (packageIds.length > 0) {
+    const nextPackageStatus = assignedCourierId ? "OUT_FOR_DELIVERY" : "IN_WAREHOUSE";
+
+    const { error: packageUpdateError } = await supabase
+      .from("packages")
+      .update({ status: nextPackageStatus })
+      .in("id", packageIds);
+
+    if (packageUpdateError) {
+      throw packageUpdateError;
+    }
+
+    const trackingEvent = assignedCourierId
+      ? {
+          event_code: "OUT_FOR_DELIVERY" as const,
+          event_label: "Diserahkan ke kurir",
+          description: `Bag ${String(bag.bag_code)} di-assign ke kurir`,
+        }
+      : {
+          event_code: "IN_WAREHOUSE" as const,
+          event_label: "Kembali ke gudang",
+          description: `Bag ${String(bag.bag_code)} dibuka dari penugasan kurir`,
+        };
+
+    const trackingRows = packageIds.map((packageId) => ({
+      package_id: packageId,
+      ...trackingEvent,
+      location: String(bag.destination_city ?? "Belum ditentukan"),
+      created_by: actorId,
+    }));
+
+    const { error: trackingError } = await supabase.from("tracking_history").insert(trackingRows);
+
+    if (trackingError) {
+      throw trackingError;
+    }
+  }
+
+  await supabase.from("activity_logs").insert({
+    actor_id: actorId,
+    action: assignedCourierId ? "ASSIGN_BAG_TO_COURIER" : "UNASSIGN_BAG_FROM_COURIER",
+    entity: "bag",
+    entity_id: bagId,
+    metadata: {
+      bag_code: bag.bag_code,
+      assigned_courier_id: assignedCourierId,
+      package_count: packageIds.length,
+    },
+  });
+
+  return {
+    bag_id: String(bag.id),
+    bag_code: String(bag.bag_code),
+    assigned_courier_id: assignedCourierId,
+    status: nextBagStatus,
+    package_count: packageIds.length,
+  };
+}
+
+async function materializeSyntheticBag(
+  supabase: SupabaseAdmin,
+  actorId: string,
+  destinationCity: string | undefined,
+  packageIds: string[],
+) {
+  const packages = await resolvePackages(supabase, packageIds, []);
+
+  if (!packages.length) {
+    throw new Error("Package ids are required for synthetic bag assignment");
+  }
+
+  const inferredCity = destinationCity ?? packageCity(packages[0]);
+  const created = await supabase
+    .from("bags")
+    .insert({
+      bag_code: makeBagCode(),
+      destination_city: inferredCity,
+      created_by: actorId,
+    })
+    .select("id, bag_code, destination_city")
+    .single();
+
+  if (created.error || !created.data) {
+    throw created.error ?? new Error("Failed to create bag for assignment");
+  }
+
+  const createdBag = created.data as Record<string, unknown>;
+
+  for (const pkg of packages) {
+    await supabase.from("bag_items").delete().eq("package_id", pkg.id);
+
+    const { error: itemError } = await supabase.from("bag_items").insert({
+      bag_id: String(createdBag.id),
+      package_id: pkg.id,
+    });
+
+    if (itemError) {
+      throw itemError;
+    }
+  }
+
+  return {
+    id: String(createdBag.id),
+    bag_code: String(createdBag.bag_code),
+    destination_city:
+      typeof createdBag.destination_city === "string"
+        ? createdBag.destination_city
+        : inferredCity,
+  };
 }
 
 async function getPackageRows(supabase: SupabaseAdmin) {
@@ -136,7 +301,7 @@ function mergeAutoCityBaggings(
     items.push({
       packages: {
         ...pkg,
-        package_name: String(pkg.package_name ?? `Paket ${pkg.resi}`),
+        package_name: packageDisplayName(pkg),
         destination_city: city,
       },
     });
@@ -309,7 +474,7 @@ export async function POST(req: Request) {
   const parsed = await parseJson(req, createBaggingSchema);
 
   if (!parsed.success) {
-    return fail("Invalid payload", 422, parsed.error.flatten());
+    return fail("Invalid payload", 422, parsed.error.issues);
   }
 
   const supabase = createSupabaseAdminClient();
@@ -392,6 +557,47 @@ export async function POST(req: Request) {
   return ok(manifest, 201);
 }
 
+export async function PATCH(req: Request) {
+  const auth = await requireRole(["admin_gudang", "superadmin"]);
+
+  if ("error" in auth) {
+    return auth.error;
+  }
+
+  const parsed = await parseJson(req, assignBagSchema);
+
+  if (!parsed.success) {
+    return fail("Invalid payload", 422, parsed.error.issues);
+  }
+
+  const supabase = createSupabaseAdminClient();
+  try {
+    const bagId = isUuid(parsed.data.bagId)
+      ? parsed.data.bagId
+      : (await materializeSyntheticBag(
+          supabase,
+          auth.data.userId,
+          parsed.data.destinationCity,
+          parsed.data.packageIds,
+        )).id;
+
+    const result = await updateBagAssignment(
+      supabase,
+      bagId,
+      parsed.data.assignedCourierId ?? null,
+      auth.data.userId,
+    );
+
+    return ok(result);
+  } catch (error) {
+    return fail(
+      "Failed to update bag assignment",
+      500,
+      error instanceof Error ? error.message : "Unknown error",
+    );
+  }
+}
+
 export async function DELETE(req: Request) {
   const auth = await requireRole(["admin_gudang", "superadmin"]);
 
@@ -417,7 +623,7 @@ export async function DELETE(req: Request) {
 
   const { error: updateError } = await supabase
     .from("packages")
-    .update({ status: "PACKAGE_CREATED" })
+    .update({ status: "IN_WAREHOUSE" })
     .eq("id", packageId);
 
   if (updateError) {

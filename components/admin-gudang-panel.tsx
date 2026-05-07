@@ -35,10 +35,17 @@ type BaggingItem = {
   bag_code: string;
   destination_city?: string | null;
   status: string;
+  assigned_courier_id?: string | null;
   created_at: string;
   bag_items?: Array<{
     packages?: BagItemPackage | BagItemPackage[] | null;
   }>;
+};
+
+type CourierItem = {
+  user_id: string;
+  full_name: string;
+  email: string;
 };
 
 const emptyPackageForm = {
@@ -84,7 +91,9 @@ export function AdminGudangPanel() {
   });
   const [packages, setPackages] = useState<PackageItem[]>([]);
   const [baggings, setBaggings] = useState<BaggingItem[]>([]);
+  const [couriers, setCouriers] = useState<CourierItem[]>([]);
   const [selectedPackageIds, setSelectedPackageIds] = useState<string[]>([]);
+  const [bagAssignments, setBagAssignments] = useState<Record<string, string>>({});
   const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
   const [editPackageForm, setEditPackageForm] = useState({
     packageName: "",
@@ -102,13 +111,15 @@ export function AdminGudangPanel() {
     setListStatus(null);
 
     try {
-      const [packagesResponse, baggingsResponse] = await Promise.all([
+      const [packagesResponse, baggingsResponse, couriersResponse] = await Promise.all([
         fetch("/api/admin/packages", { cache: "no-store" }),
         fetch("/api/admin/manifests", { cache: "no-store" }),
+        fetch("/api/admin/couriers", { cache: "no-store" }),
       ]);
-      const [packagesJson, baggingsJson] = await Promise.all([
+      const [packagesJson, baggingsJson, couriersJson] = await Promise.all([
         packagesResponse.json(),
         baggingsResponse.json(),
+        couriersResponse.json(),
       ]);
 
       if (!packagesResponse.ok || !packagesJson.ok) {
@@ -119,19 +130,32 @@ export function AdminGudangPanel() {
         throw new Error(baggingsJson?.error?.message ?? "Gagal mengambil bagging");
       }
 
+      if (!couriersResponse.ok || !couriersJson.ok) {
+        throw new Error(couriersJson?.error?.message ?? "Gagal mengambil daftar kurir");
+      }
+
       setPackages(packagesJson.data as PackageItem[]);
       setBaggings(baggingsJson.data as BaggingItem[]);
+      setCouriers(couriersJson.data as CourierItem[]);
+      setBagAssignments(
+        Object.fromEntries(
+          (baggingsJson.data as BaggingItem[]).map((bag) => [
+            bag.id,
+            bag.assigned_courier_id ?? "",
+          ]),
+        ),
+      );
     } catch (error) {
       setListStatus(error instanceof Error ? error.message : "Gagal memuat data gudang");
     }
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = globalThis.setTimeout(() => {
       void refreshData();
     }, 0);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => globalThis.clearTimeout(timeoutId);
   }, []);
 
   const destinationCities = useMemo(() => {
@@ -282,7 +306,7 @@ export function AdminGudangPanel() {
   }
 
   async function handleDeletePackage(packageId: string) {
-    const confirmed = window.confirm("Hapus paket ini? Data paket akan dihapus dari database.");
+    const confirmed = globalThis.confirm("Hapus paket ini? Data paket akan dihapus dari database.");
 
     if (!confirmed) {
       return;
@@ -314,6 +338,35 @@ export function AdminGudangPanel() {
 
     if (!response.ok || !json.ok) {
       setListStatus(json?.error?.message ?? "Gagal mengeluarkan paket dari bagging");
+      return;
+    }
+
+    await refreshData();
+  }
+
+  async function handleAssignCourier(bag: BaggingItem) {
+    setListStatus(null);
+
+    const packageIds = (bag.bag_items ?? [])
+      .map((item) => (Array.isArray(item.packages) ? item.packages[0] : item.packages))
+      .filter((pkg): pkg is BagItemPackage => Boolean(pkg))
+      .map((pkg) => pkg.id);
+
+    const response = await fetch("/api/admin/manifests", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bagId: bag.id,
+        assignedCourierId: bagAssignments[bag.id] || null,
+        destinationCity: bag.destination_city || undefined,
+        packageIds,
+      }),
+    });
+
+    const json = await response.json();
+
+    if (!response.ok || !json.ok) {
+      setListStatus(json?.error?.message ?? "Gagal memperbarui assignment kurir");
       return;
     }
 
@@ -485,7 +538,7 @@ export function AdminGudangPanel() {
         </div>
         {listStatus ? <p className="mt-3 text-sm text-red-600">{listStatus}</p> : null}
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table className="w-full min-w-245 text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <tr>
                 <th className="py-3 pe-3">Resi</th>
@@ -631,7 +684,9 @@ export function AdminGudangPanel() {
               })}
             </tbody>
           </table>
-          {!packages.length ? <p className="py-6 text-sm text-slate-500">Belum ada paket.</p> : null}
+          {packages.length === 0 ? (
+            <p className="py-6 text-sm text-slate-500">Belum ada paket.</p>
+          ) : null}
         </div>
       </article>
 
@@ -640,6 +695,10 @@ export function AdminGudangPanel() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {baggings.map((bag) => {
             const items = bag.bag_items ?? [];
+            const assignedCourierId = bag.assigned_courier_id ?? bagAssignments[bag.id] ?? "";
+            const courierLabel =
+              couriers.find((courier) => courier.user_id === assignedCourierId)?.full_name ??
+              (assignedCourierId || "Belum di-assign");
 
             return (
               <div key={bag.id} className="rounded-lg border border-slate-200 p-4">
@@ -649,10 +708,37 @@ export function AdminGudangPanel() {
                     <p className="text-sm text-slate-600">
                       Kota tujuan: {normalizeCity(bag.destination_city) || "Mengikuti paket"}
                     </p>
+                    <p className="text-xs text-slate-500">Kurir: {courierLabel}</p>
                   </div>
                   <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
                     {items.length} paket
                   </span>
+                </div>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <select
+                    value={assignedCourierId}
+                    onChange={(event) =>
+                      setBagAssignments((current) => ({
+                        ...current,
+                        [bag.id]: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Belum di-assign</option>
+                    {couriers.map((courier) => (
+                      <option key={courier.user_id} value={courier.user_id}>
+                        {courier.full_name} {courier.email ? `(${courier.email})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void handleAssignCourier(bag)}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                  >
+                    Simpan Kurir
+                  </button>
                 </div>
                 <div className="mt-3 space-y-2">
                   {items.map((item, index) => {
@@ -689,7 +775,9 @@ export function AdminGudangPanel() {
             );
           })}
         </div>
-        {!baggings.length ? <p className="mt-4 text-sm text-slate-500">Belum ada data bagging.</p> : null}
+        {baggings.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500">Belum ada data bagging.</p>
+        ) : null}
       </article>
     </section>
   );

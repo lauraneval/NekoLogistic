@@ -58,6 +58,7 @@ create table if not exists public.bags (
   bag_code text not null unique check (bag_code ~ '^BAG-[0-9]{4}-[A-Z0-9]{4}$'),
   destination_city text not null default 'Belum ditentukan',
   status text not null default 'OPEN',
+  assigned_courier_id uuid references public.profiles(user_id),
   created_by uuid not null references public.profiles(user_id),
   created_at timestamptz not null default now()
 );

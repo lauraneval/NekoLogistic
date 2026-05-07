@@ -6,6 +6,10 @@
 - `app/api/public/tracking/[resi]/route.ts` - public tracking endpoint.
 - `app/api/admin/packages/route.ts` - create package + generate resi.
 - `app/api/admin/manifests/route.ts` - bulk manifesting via RPC.
+- `app/api/courier/tasks/route.ts` - courier bag task list for mobile.
+- `app/api/courier/tasks/[id]/route.ts` - courier bag detail for mobile.
+- `app/api/courier/tasks/[id]/timeline/route.ts` - package timelines inside a bag.
+- `app/api/courier/tasks/[id]/deliver/route.ts` - courier POD delivery update.
 - `app/api/superadmin/users/route.ts` - register admin gudang or kurir.
 - `app/api/superadmin/analytics/route.ts` - dashboard analytics and activity logs.
 - `app/page.tsx` - landing page.
@@ -43,6 +47,10 @@
 - `GET /api/public/tracking/:resi`
 - `POST /api/admin/packages`
 - `POST /api/admin/manifests`
+- `GET /api/courier/tasks?status=OUT_FOR_DELIVERY`
+- `GET /api/courier/tasks/:id`
+- `GET /api/courier/tasks/:id/timeline`
+- `PUT /api/courier/tasks/:id/deliver`
 - `POST /api/superadmin/users`
 - `GET /api/superadmin/analytics`
 
