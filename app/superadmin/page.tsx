@@ -85,7 +85,7 @@ function mergeAutoCityBaggings(bags: BaggingRow[], packages: PackageRow[]) {
 }
 
 export default async function SuperadminPage() {
-  const profile = await ensureRoleOrRedirect(["superadmin"]);
+  const profile = await ensureRoleOrRedirect(["superadmin", "admin_gudang", "kurir"]);
   const supabase = createSupabaseAdminClient();
 
   const [

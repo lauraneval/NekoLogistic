@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { packageStatusLabels, type PackageStatus } from "@/lib/types";
+import DashboardChart from "./DashboardChart";
 
 type UserItem = {
   user_id: string;
@@ -254,6 +255,11 @@ export function SuperadminDashboard({ initialData }: Props) {
           <p className="mt-2 text-3xl font-bold text-slate-900">{loading ? "..." : data.metrics.successRate}%</p>
         </article>
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="font-mono text-xl font-semibold text-slate-900 mb-4">Statistik Pengiriman Harian</h2>
+        <DashboardChart packages={initialData.packages} />
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
