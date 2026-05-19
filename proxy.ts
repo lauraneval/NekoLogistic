@@ -9,7 +9,7 @@ function hasSupabaseSessionCookie(request: NextRequest) {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const protectedPrefixes = ["/superadmin", "/admin-gudang", "/kurir"];
+  const protectedPrefixes = ["/superadmin", "/admin-gudang", "/kurir", "/titan"];
   const needsAuth = protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
 
   if (!needsAuth) {
@@ -27,5 +27,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/superadmin/:path*", "/admin-gudang/:path*", "/kurir/:path*"],
+  matcher: ["/superadmin/:path*", "/admin-gudang/:path*", "/kurir/:path*", "/titan/:path*"],
 };
