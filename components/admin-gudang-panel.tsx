@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { LogoutButton } from "@/components/logout-button";
 
-// IMPORT SEMUA KOMPONEN VIEW
+// IMPORT SEMUA KOMPONEN VIEW YANG SUDAH KITA BUAT
 import { DashboardOverview } from "./dashboard-overview";
 import { PackageManagementView } from "./package-management-view";
 import { TrackingPortalView } from "./tracking-portal-view";
@@ -50,8 +50,8 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
               <UserIcon />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-gray-900 truncate">{profile?.fullName || "Admin"}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">{(profile?.role || "Gudang").replace("_", " ")}</p>
+              <p className="text-xs font-bold text-gray-900 truncate">{profile.fullName}</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">{profile.role.replace("_", " ")}</p>
             </div>
           </div>
         </div>
@@ -81,25 +81,28 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
           </div>
         </header>
 
-        {/* --- PANEL RENDERING UTAMA --- */}
+        {/* --- KONTEN BERDASARKAN TAB AKTIF --- */}
         <main className="flex-1 overflow-y-auto px-8 pb-8">
           
+          {/* TAB YANG SUDAH SELESAI KITA BUAT */}
           {activeTab === "Dashboard" && <DashboardOverview />}
           {activeTab === "Package Management" && <PackageManagementView />}
           {activeTab === "Tracking Portal" && <TrackingPortalView />}
           {activeTab === "Consolidation / Bagging" && <ConsolidationView />}
 
+          {/* TAB UNTUK FITUR INPUT PAKET (Tinggal Anda isi ke depannya) */}
           {activeTab === "Input New Package" && (
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
-               <h2 className="text-xl font-bold mb-4">Input New Package</h2>
-               <p className="text-gray-500 text-sm">Komponen Form Input Package Anda dapat diletakkan di sini.</p>
+               <h2 className="text-xl font-bold mb-4">Input Package Form</h2>
+               <p className="text-gray-500 text-sm">Pindahkan komponen form Input Package Anda ke file terpisah dan import ke sini, persis seperti tab lainnya.</p>
             </div>
           )}
-
+          
+          {/* TAB USER MANAGEMENT */}
           {activeTab === "User Management" && (
             <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
                <h2 className="text-xl font-bold mb-4">User Management</h2>
-               <p className="text-gray-500 text-sm">Halaman manajemen hak akses pengguna.</p>
+               <p className="text-gray-500 text-sm">Fitur manajemen pengguna sedang dalam pengembangan.</p>
             </div>
           )}
           
@@ -110,14 +113,13 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
 }
 
 // ===============================================
-// HELPER COMPONENT UNTUK NAVIGASI SIDEBAR
+// HELPER COMPONENT UNTUK TOMBOL DI SIDEBAR
 // ===============================================
-function NavItem({ label, icon, active, onClick }: { label: string; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+function NavItem({ label, icon, active, onClick }: any) {
   return (
     <button 
-      type="button"
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all border-l-2 text-left cursor-pointer ${
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all border-l-2 ${
         active 
           ? 'bg-blue-50/50 text-[#0047BB] font-bold border-[#0047BB]' 
           : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700 font-medium'
