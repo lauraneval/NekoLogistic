@@ -101,8 +101,9 @@ async function updateBagAssignment(
     throw bagError ?? new Error("Bag not found");
   }
 
+  const bagRow = bag as BaggingRow;
   const nextBagStatus = assignedCourierId ? "OUT_FOR_DELIVERY" : "OPEN";
-  const bagItems = Array.isArray(bag.bag_items) ? bag.bag_items : [];
+  const bagItems = Array.isArray(bagRow.bag_items) ? bagRow.bag_items : [];
   const packageIds = bagItems
     .map((item) => (item as { package_id?: string }).package_id)
     .filter((packageId): packageId is string => Boolean(packageId));
@@ -135,18 +136,18 @@ async function updateBagAssignment(
       ? {
           event_code: "OUT_FOR_DELIVERY" as const,
           event_label: "Diserahkan ke kurir",
-          description: `Bag ${String(bag.bag_code)} di-assign ke kurir`,
+          description: `Bag ${String(bagRow.bag_code)} di-assign ke kurir`,
         }
       : {
           event_code: "IN_WAREHOUSE" as const,
           event_label: "Kembali ke gudang",
-          description: `Bag ${String(bag.bag_code)} dibuka dari penugasan kurir`,
+          description: `Bag ${String(bagRow.bag_code)} dibuka dari penugasan kurir`,
         };
 
     const trackingRows = packageIds.map((packageId) => ({
       package_id: packageId,
       ...trackingEvent,
-      location: String(bag.destination_city ?? "Belum ditentukan"),
+      location: String(bagRow.destination_city ?? "Belum ditentukan"),
       created_by: actorId,
     }));
 
@@ -163,15 +164,15 @@ async function updateBagAssignment(
     entity: "bag",
     entity_id: bagId,
     metadata: {
-      bag_code: bag.bag_code,
+      bag_code: bagRow.bag_code,
       assigned_courier_id: assignedCourierId,
       package_count: packageIds.length,
     },
   });
 
   return {
-    bag_id: String(bag.id),
-    bag_code: String(bag.bag_code),
+    bag_id: String(bagRow.id),
+    bag_code: String(bagRow.bag_code),
     assigned_courier_id: assignedCourierId,
     status: nextBagStatus,
     package_count: packageIds.length,

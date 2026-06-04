@@ -16,6 +16,26 @@ function normalizeCoordinate(value: number | null | undefined) {
   return typeof value === "number" ? value : null;
 }
 
+type CourierTaskRow = {
+  id: string;
+  bag_code: string;
+  destination_city?: string | null;
+  status: string;
+  assigned_courier_id?: string | null;
+  bag_items?: Array<{
+    package_id: string;
+    packages?: {
+      id: string;
+      resi: string;
+      receiver_name: string;
+      receiver_address: string;
+      status: string;
+      target_latitude?: number | null;
+      target_longitude?: number | null;
+    } | null;
+  }> | null;
+};
+
 export async function GET(req: Request) {
   const auth = await authenticateMobileRequest(req, ["kurir", "superadmin", "admin_gudang"]);
 
@@ -47,7 +67,8 @@ export async function GET(req: Request) {
   }
 
   const tasks = (data ?? []).map((bag) => {
-    const bagItems = (Array.isArray(bag.bag_items) ? bag.bag_items : []) as Array<{
+    const bagRow = bag as CourierTaskRow;
+    const bagItems = (Array.isArray(bagRow.bag_items) ? bagRow.bag_items : []) as Array<{
       package_id: string;
       packages?: {
         id: string;
@@ -66,12 +87,12 @@ export async function GET(req: Request) {
     const representativePackage = packages[0] ?? null;
 
     return {
-      id: String(bag.id),
-      bag_code: String(bag.bag_code),
-      destination_city: String(bag.destination_city ?? "Belum ditentukan"),
+      id: String(bagRow.id),
+      bag_code: String(bagRow.bag_code),
+      destination_city: String(bagRow.destination_city ?? "Belum ditentukan"),
       package_count: packages.length,
-      status: String(bag.status),
-      assigned_courier_id: bag.assigned_courier_id ? String(bag.assigned_courier_id) : null,
+      status: String(bagRow.status),
+      assigned_courier_id: bagRow.assigned_courier_id ? String(bagRow.assigned_courier_id) : null,
       receiver_name: representativePackage?.receiver_name ?? null,
       receiver_address: representativePackage?.receiver_address ?? null,
       latitude: normalizeCoordinate(representativePackage?.target_latitude),

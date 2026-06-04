@@ -18,6 +18,11 @@ type BagSummary = {
   assigned_courier_id: string | null;
 };
 
+type DeliverTaskRow = {
+  resi: string;
+  bag_items?: Array<{ bags?: BagSummary[] | BagSummary | null }> | null;
+};
+
 async function getTaskWithBag(supabase: ReturnType<typeof createSupabaseAdminClient>, id: string) {
   return supabase
     .from("packages")
@@ -112,7 +117,8 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/courier/tasks/[i
     return mobileError("Task not found", 404);
   }
 
-  const currentBag = resolveBag(existingTask as { bag_items?: unknown[] | null });
+  const taskRow = existingTask as DeliverTaskRow;
+  const currentBag = resolveBag(taskRow) ?? null;
 
   if (!canCourierDeliverBag(auth.data.role, auth.data.userId, currentBag)) {
     return mobileError("Forbidden", 403);
@@ -159,7 +165,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/courier/tasks/[i
 
   return mobileMessage("Delivery updated", 200, {
     id: String(id),
-    resi: String(existingTask.resi),
+    resi: String(taskRow.resi),
     status: "DELIVERED",
     delivered_at: deliveredAt.toISOString(),
   });

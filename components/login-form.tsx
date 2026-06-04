@@ -54,13 +54,14 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+    <form action="/api/auth/login" method="post" onSubmit={onSubmit} className="mt-6 space-y-4">
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
           Email
         </label>
         <input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -77,6 +78,7 @@ export function LoginForm() {
         </label>
         <input
           id="password"
+          name="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
