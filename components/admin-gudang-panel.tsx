@@ -7,10 +7,11 @@ import { LogoutButton } from "@/components/logout-button";
 import { DashboardOverview } from "./dashboard-overview";
 import { PackageManagementView } from "./package-management-view";
 import { TrackingPortalView } from "./tracking-portal-view";
-import { ConsolidationView } from "./consolidation-view"; 
+import { ConsolidationView } from "./consolidation-view";
+import { InputPackageView } from "./input-package-view";
 
 // IMPORT KUMPULAN ICON
-import { DashboardIcon, PackageIcon, PlusIcon, ConsolidateIcon, LocationIcon, UserIcon, SearchIcon, BellIcon, SettingsIcon } from "./icons";
+import { DashboardIcon, PackageIcon, PlusIcon, ConsolidateIcon, LocationIcon, UserIcon, SearchIcon } from "./icons";
 
 interface AdminGudangPanelProps {
   profile: {
@@ -39,7 +40,6 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
             <NavItem icon={<PlusIcon />} label="Input New Package" active={activeTab === "Input New Package"} onClick={() => setActiveTab("Input New Package")} />
             <NavItem icon={<ConsolidateIcon />} label="Consolidation / Bagging" active={activeTab === "Consolidation / Bagging"} onClick={() => setActiveTab("Consolidation / Bagging")} />
             <NavItem icon={<LocationIcon />} label="Tracking Portal" active={activeTab === "Tracking Portal"} onClick={() => setActiveTab("Tracking Portal")} />
-            <NavItem icon={<UserIcon />} label="User Management" active={activeTab === "User Management"} onClick={() => setActiveTab("User Management")} />
           </nav>
         </div>
 
@@ -72,8 +72,6 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
           </div>
           
           <div className="flex items-center gap-5">
-             <button className="text-gray-400 hover:text-gray-600 transition"><BellIcon /></button>
-             <button className="text-gray-400 hover:text-gray-600 transition"><SettingsIcon /></button>
              <div className="flex items-center gap-3 ml-2 border-l border-gray-200 pl-4">
                <span className="text-sm font-bold text-[#0047BB]">Admin Control</span>
                <LogoutButton />
@@ -90,22 +88,8 @@ export function AdminGudangPanel({ profile }: AdminGudangPanelProps) {
           {activeTab === "Tracking Portal" && <TrackingPortalView />}
           {activeTab === "Consolidation / Bagging" && <ConsolidationView />}
 
-          {/* TAB UNTUK FITUR INPUT PAKET (Tinggal Anda isi ke depannya) */}
-          {activeTab === "Input New Package" && (
-            <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
-               <h2 className="text-xl font-bold mb-4">Input Package Form</h2>
-               <p className="text-gray-500 text-sm">Pindahkan komponen form Input Package Anda ke file terpisah dan import ke sini, persis seperti tab lainnya.</p>
-            </div>
-          )}
-          
-          {/* TAB USER MANAGEMENT */}
-          {activeTab === "User Management" && (
-            <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
-               <h2 className="text-xl font-bold mb-4">User Management</h2>
-               <p className="text-gray-500 text-sm">Fitur manajemen pengguna sedang dalam pengembangan.</p>
-            </div>
-          )}
-          
+          {/* TAB UNTUK FITUR INPUT PAKET */}
+          {activeTab === "Input New Package" && <InputPackageView />}
         </main>
       </div>
     </div>
@@ -119,16 +103,18 @@ function NavItem({ label, icon, active, onClick }: any) {
   return (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all border-l-2 ${
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all border-l-2 text-left ${
         active 
           ? 'bg-blue-50/50 text-[#0047BB] font-bold border-[#0047BB]' 
           : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700 font-medium'
       }`}
     >
-      <span className={`flex items-center justify-center w-5 h-5 ${active ? 'text-[#0047BB]' : 'text-gray-400'}`}>
+      {/* flex-shrink-0 agar icon tidak mengecil saat teksnya panjang */}
+      <span className={`flex-shrink-0 flex items-center justify-center w-5 h-5 ${active ? 'text-[#0047BB]' : 'text-gray-400'}`}>
         {icon}
       </span>
-      <span className="text-sm">{label}</span>
+      {/* leading-snug agar jarak baris atas dan bawah rapi saat teks turun */}
+      <span className="text-sm leading-snug">{label}</span>
     </button>
   );
 }
