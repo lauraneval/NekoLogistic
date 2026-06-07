@@ -7,10 +7,17 @@ type MobilePackageRow = {
   id: string;
   resi: string;
   receiver_name: string;
+  receiver_phone?: string | null;
   receiver_address: string;
   status: string;
   package_name?: string | null;
   weight_kg?: number | null;
+  length_cm?: number | null;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  sender_name?: string | null;
+  sender_phone?: string | null;
+  sender_email?: string | null;
   target_latitude?: number | null;
   target_longitude?: number | null;
 };
@@ -60,20 +67,34 @@ function buildTaskItem(bag: MobileBagRow) {
     created_at: bag.created_at,
     package_count: packages.length,
     receiver_name: representativePackage?.receiver_name ?? null,
+    receiver_phone: representativePackage?.receiver_phone ?? null,
     receiver_address: representativePackage?.receiver_address ?? null,
     resi: representativePackage?.resi ?? null,
     package_name: representativePackage?.package_name ?? null,
     weight_kg: representativePackage?.weight_kg ?? null,
+    length_cm: representativePackage?.length_cm ?? null,
+    width_cm: representativePackage?.width_cm ?? null,
+    height_cm: representativePackage?.height_cm ?? null,
+    sender_name: representativePackage?.sender_name ?? null,
+    sender_phone: representativePackage?.sender_phone ?? null,
+    sender_email: representativePackage?.sender_email ?? null,
     latitude: normalizeCoordinate(representativePackage?.target_latitude),
     longitude: normalizeCoordinate(representativePackage?.target_longitude),
     packages: packages.map((pkg) => ({
       id: String(pkg.id),
       resi: String(pkg.resi),
       receiver_name: String(pkg.receiver_name),
+      receiver_phone: pkg.receiver_phone ?? null,
       receiver_address: String(pkg.receiver_address),
       status: String(pkg.status),
       package_name: pkg.package_name ?? null,
       weight_kg: pkg.weight_kg ?? null,
+      length_cm: pkg.length_cm ?? null,
+      width_cm: pkg.width_cm ?? null,
+      height_cm: pkg.height_cm ?? null,
+      sender_name: pkg.sender_name ?? null,
+      sender_phone: pkg.sender_phone ?? null,
+      sender_email: pkg.sender_email ?? null,
       latitude: normalizeCoordinate(pkg.target_latitude),
       longitude: normalizeCoordinate(pkg.target_longitude),
     })),
@@ -91,7 +112,7 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from("bags")
     .select(
-      "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_address, package_name, weight_kg, status, target_latitude, target_longitude))",
+      "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_phone, receiver_address, package_name, weight_kg, length_cm, width_cm, height_cm, sender_name, sender_phone, sender_email, status, target_latitude, target_longitude))",
     )
     .eq("assigned_courier_id", auth.data.userId)
     .in("status", ["OPEN", "IN_WAREHOUSE", "IN_TRANSIT", "OUT_FOR_DELIVERY"])

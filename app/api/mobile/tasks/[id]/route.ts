@@ -10,10 +10,17 @@ type MobilePackageRow = {
   id: string;
   resi: string;
   receiver_name: string;
+  receiver_phone?: string | null;
   receiver_address: string;
   status: string;
   package_name?: string | null;
   weight_kg?: number | null;
+  length_cm?: number | null;
+  width_cm?: number | null;
+  height_cm?: number | null;
+  sender_name?: string | null;
+  sender_phone?: string | null;
+  sender_email?: string | null;
   target_latitude?: number | null;
   target_longitude?: number | null;
 };
@@ -67,7 +74,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
   const { data, error } = await supabase
     .from("bags")
     .select(
-      "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_address, package_name, weight_kg, status, target_latitude, target_longitude))",
+      "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_phone, receiver_address, package_name, weight_kg, length_cm, width_cm, height_cm, sender_name, sender_phone, sender_email, status, target_latitude, target_longitude))",
     )
     .eq("id", parsedId.data)
     .maybeSingle();
@@ -104,10 +111,17 @@ export async function GET(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
     created_at: bag.created_at,
     package_count: packages.length,
     receiver_name: primaryPackage?.receiver_name ?? null,
+    receiver_phone: primaryPackage?.receiver_phone ?? null,
     receiver_address: primaryPackage?.receiver_address ?? null,
     resi: primaryPackage?.resi ?? null,
     package_name: primaryPackage?.package_name ?? null,
     weight_kg: primaryPackage?.weight_kg ?? null,
+    length_cm: primaryPackage?.length_cm ?? null,
+    width_cm: primaryPackage?.width_cm ?? null,
+    height_cm: primaryPackage?.height_cm ?? null,
+    sender_name: primaryPackage?.sender_name ?? null,
+    sender_phone: primaryPackage?.sender_phone ?? null,
+    sender_email: primaryPackage?.sender_email ?? null,
     handling_instruction: primaryPackage?.package_name ?? null,
     expected_arrival_at: expectedArrivalAt,
     latitude: normalizeCoordinate(primaryPackage?.target_latitude),
@@ -116,10 +130,17 @@ export async function GET(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
       id: String(pkg.id),
       resi: String(pkg.resi),
       receiver_name: String(pkg.receiver_name),
+      receiver_phone: pkg.receiver_phone ?? null,
       receiver_address: String(pkg.receiver_address),
       status: String(pkg.status),
       package_name: pkg.package_name ?? null,
       weight_kg: pkg.weight_kg ?? null,
+      length_cm: pkg.length_cm ?? null,
+      width_cm: pkg.width_cm ?? null,
+      height_cm: pkg.height_cm ?? null,
+      sender_name: pkg.sender_name ?? null,
+      sender_phone: pkg.sender_phone ?? null,
+      sender_email: pkg.sender_email ?? null,
       latitude: normalizeCoordinate(pkg.target_latitude),
       longitude: normalizeCoordinate(pkg.target_longitude),
     })),

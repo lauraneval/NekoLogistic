@@ -11,7 +11,7 @@ import { packageStatusLabels, type PackageStatus } from "@/lib/types";
 import { makeBagCode } from "@/lib/resi";
 
 const fullPackageSelect =
-  "id, resi, package_name, sender_name, receiver_name, receiver_address, destination_city, weight_kg, status, created_at, updated_at";
+  "id, resi, package_name, sender_name, sender_phone, sender_email, receiver_name, receiver_phone, receiver_address, receiver_state, receiver_zip, destination_city, weight_kg, length_cm, width_cm, height_cm, status, created_at, updated_at";
 const legacyPackageSelect =
   "id, resi, sender_name, receiver_name, receiver_address, weight_kg, status, created_at, updated_at";
 
@@ -183,10 +183,20 @@ export async function POST(req: Request) {
     resi,
     package_name: parsed.data.packageName,
     sender_name: parsed.data.senderName,
+    sender_phone: parsed.data.senderPhone ?? null,
+    sender_email: parsed.data.senderEmail ?? null,
     receiver_name: parsed.data.receiverName,
+    receiver_phone: parsed.data.receiverPhone ?? null,
     receiver_address: parsed.data.receiverAddress,
+    receiver_state: parsed.data.receiverState ?? null,
+    receiver_zip: parsed.data.receiverZip ?? null,
     destination_city: parsed.data.destinationCity,
     weight_kg: parsed.data.weightKg,
+    length_cm: parsed.data.lengthCm ?? null,
+    width_cm: parsed.data.widthCm ?? null,
+    height_cm: parsed.data.heightCm ?? null,
+    target_latitude: parsed.data.targetLatitude ?? null,
+    target_longitude: parsed.data.targetLongitude ?? null,
     status: "PACKAGE_CREATED",
     created_by: auth.data.userId,
   };

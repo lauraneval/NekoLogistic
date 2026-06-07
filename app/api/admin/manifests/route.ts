@@ -606,13 +606,55 @@ export async function DELETE(req: Request) {
     return auth.error;
   }
 
-  const packageId = new URL(req.url).searchParams.get("packageId");
+  const url = new URL(req.url);
+  const bagId = url.searchParams.get("bagId");
+  const packageId = url.searchParams.get("packageId");
+  const supabase = createSupabaseAdminClient();
 
-  if (!packageId) {
-    return fail("Package id is required", 422);
+  // Delete entire bag
+  if (bagId) {
+    const { data: items } = await supabase
+      .from("bag_items")
+      .select("package_id")
+      .eq("bag_id", bagId);
+
+    const packageIds = (items ?? [])
+      .map((i: Record<string, unknown>) => (typeof i.package_id === "string" ? i.package_id : null))
+      .filter((id): id is string => id !== null);
+
+    if (packageIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from("packages")
+        .update({ status: "IN_WAREHOUSE" })
+        .in("id", packageIds);
+
+      if (updateError) {
+        return fail("Failed to reset package statuses", 500, updateError.message);
+      }
+    }
+
+    const { error: deleteError } = await supabase.from("bags").delete().eq("id", bagId);
+
+    if (deleteError) {
+      return fail("Failed to delete bag", 500, deleteError.message);
+    }
+
+    await supabase.from("activity_logs").insert({
+      actor_id: auth.data.userId,
+      action: "DELETE_BAG",
+      entity: "bag",
+      entity_id: bagId,
+      metadata: { packages_released: packageIds.length },
+    });
+
+    return ok({ bagId, packagesReleased: packageIds.length });
   }
 
-  const supabase = createSupabaseAdminClient();
+  // Remove single package from bag
+  if (!packageId) {
+    return fail("bagId or packageId is required", 422);
+  }
+
   const { error: deleteError } = await supabase
     .from("bag_items")
     .delete()

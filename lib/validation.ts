@@ -16,10 +16,20 @@ export const resiSchema = z
 export const createPackageSchema = z.object({
   packageName: safeText,
   senderName: safeText,
+  senderPhone: z.string().trim().max(30).optional().nullable(),
+  senderEmail: z.string().trim().email().optional().nullable(),
   receiverName: safeText,
+  receiverPhone: z.string().trim().max(30).optional().nullable(),
   receiverAddress: z.string().trim().min(6).max(240).regex(/^[^<>]*$/),
+  receiverState: z.string().trim().max(80).optional().nullable(),
+  receiverZip: z.string().trim().max(20).optional().nullable(),
   destinationCity: safeText,
   weightKg: z.number().positive().max(100),
+  lengthCm: z.number().min(0).max(500).optional().nullable(),
+  widthCm: z.number().min(0).max(500).optional().nullable(),
+  heightCm: z.number().min(0).max(500).optional().nullable(),
+  targetLatitude: z.number().min(-90).max(90).optional().nullable(),
+  targetLongitude: z.number().min(-180).max(180).optional().nullable(),
 });
 
 export const createBaggingSchema = z.object({

@@ -86,6 +86,11 @@ export async function POST(req: Request) {
   const role = (profile?.role as string | undefined) ?? "kurir";
   const redirectTo = role === "admin_gudang" ? "/admin-gudang" : `/${role}`;
 
+  await supabaseAdmin
+    .from("profiles")
+    .update({ last_login_at: new Date().toISOString() })
+    .eq("user_id", user.id);
+
   await supabaseAdmin.from("activity_logs").insert({
     actor_id: user.id,
     action: "LOGIN_SUCCESS",
