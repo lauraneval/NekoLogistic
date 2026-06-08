@@ -56,6 +56,15 @@ export async function POST(req: Request) {
 
   const supabaseAdmin = createSupabaseAdminClient();
 
+  // Check if email already exists in auth before attempting create
+  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const emailTaken = existingUsers?.users?.some(
+    (u) => u.email?.toLowerCase() === parsed.data.email.toLowerCase(),
+  );
+  if (emailTaken) {
+    return fail("Email address is already registered. Use a different email.", 409);
+  }
+
   const { data: authData, error: createError } = await supabaseAdmin.auth.admin.createUser({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -66,17 +75,24 @@ export async function POST(req: Request) {
   });
 
   if (createError || !authData.user) {
-    return fail("Failed to create user", 500, createError?.message);
+    const msg = createError?.message ?? "Failed to create user";
+    return fail(msg, 500);
   }
 
-  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
-    user_id: authData.user.id,
-    full_name: parsed.data.fullName,
-    role: parsed.data.role,
-  });
+  const { error: profileError } = await supabaseAdmin.from("profiles").upsert(
+    {
+      user_id: authData.user.id,
+      full_name: parsed.data.fullName,
+      role: parsed.data.role,
+      email: parsed.data.email,
+    },
+    { onConflict: "user_id" },
+  );
 
   if (profileError) {
-    return fail("User created but role assignment failed", 500, profileError.message);
+    // Clean up the auth user since profile creation failed
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    return fail(`User creation failed: ${profileError.message}`, 500);
   }
 
   await supabaseAdmin.from("activity_logs").insert({

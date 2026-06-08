@@ -74,22 +74,39 @@ export function PortalUsers({ users: initialUsers, stats }: Props) {
     e.preventDefault();
     setAddLoading(true);
     setAddStatus(null);
-    const res = await fetch("/api/superadmin/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addForm),
-    });
-    const json = await res.json();
-    if (res.ok && json.ok) {
-      setAddStatus("User created successfully.");
-      setAddForm({ email: "", password: "", fullName: "", role: "kurir" });
-      setUsers((prev) => [
-        { user_id: json.data.userId ?? crypto.randomUUID(), full_name: addForm.fullName, email: addForm.email, role: addForm.role, created_at: new Date().toISOString(), status: "active" },
-        ...prev,
-      ]);
-      setTimeout(() => setShowAddForm(false), 1000);
-    } else {
-      setAddStatus(json?.error?.message ?? "Failed to create user");
+    try {
+      const res = await fetch("/api/superadmin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: addForm.email.trim().toLowerCase(),
+          password: addForm.password,
+          fullName: addForm.fullName.trim(),
+          role: addForm.role,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setAddStatus("ok:User created successfully.");
+        setAddForm({ email: "", password: "", fullName: "", role: "kurir" });
+        setUsers((prev) => [
+          {
+            user_id: json.data.user_id ?? crypto.randomUUID(),
+            full_name: addForm.fullName.trim(),
+            email: addForm.email.trim().toLowerCase(),
+            role: addForm.role,
+            created_at: new Date().toISOString(),
+            status: "active",
+          },
+          ...prev,
+        ]);
+        setTimeout(() => { setShowAddForm(false); setAddStatus(null); }, 1500);
+      } else {
+        const msg = json?.error?.message ?? "Failed to create user. Please try again.";
+        setAddStatus("err:" + msg);
+      }
+    } catch {
+      setAddStatus("err:Network error. Please check your connection and try again.");
     }
     setAddLoading(false);
   }
@@ -161,8 +178,14 @@ export function PortalUsers({ users: initialUsers, stats }: Props) {
             </button>
           </div>
           {addStatus && (
-            <div className={`mb-4 rounded-lg px-3 py-2 text-sm font-medium ${addStatus.includes("success") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-              {addStatus}
+            <div
+              className={`mb-4 rounded-lg px-4 py-3 text-sm font-medium ${
+                addStatus.startsWith("ok:") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {addStatus.startsWith("ok:") || addStatus.startsWith("err:")
+                ? addStatus.slice(3)
+                : addStatus}
             </div>
           )}
           <form onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
