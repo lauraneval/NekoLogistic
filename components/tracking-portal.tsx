@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 
 type TrackingEvent = {
   event_code: string;
@@ -178,6 +177,7 @@ export function TrackingPortal() {
   const [phoneRequired, setPhoneRequired] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState<"tracking" | "services" | "support">("tracking");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const sectionIds = ["services", "support"] as const;
@@ -262,35 +262,55 @@ export function TrackingPortal() {
       <nav className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
           {/* Logo */}
-        <div className="flex items-center gap-2 border-b border-slate-100">
-          <span className="text-[#1A3CA8]">
-            <IconTruck />
-          </span>
-          <div>
-            <p className="text-sm font-bold text-[#1A3CA8] leading-tight">NEKO Logistic</p>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              Delivery Cat
-            </p>
+          <div className="flex items-center gap-2">
+            <span className="text-[#1A3CA8]"><IconTruck /></span>
+            <div>
+              <p className="text-sm font-bold text-[#1A3CA8] leading-tight">NEKO Logistic</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Delivery Cat</p>
+            </div>
           </div>
-        </div>
-          <div className="flex items-center gap-6 text-sm">
-            <button type="button" onClick={() => scrollTo("services")} className={navCls("services")}>
-              Services
-            </button>
-            <button type="button" onClick={() => scrollTo("tracking")} className={navCls("tracking")}>
-              Tracking Portal
-            </button>
-            <button type="button" onClick={() => scrollTo("support")} className={navCls("support")}>
-              Support
-            </button>
+
+          {/* Desktop nav links */}
+          <div className="hidden items-center gap-6 text-sm md:flex">
+            <button type="button" onClick={() => scrollTo("services")} className={navCls("services")}>Services</button>
+            <button type="button" onClick={() => scrollTo("tracking")} className={navCls("tracking")}>Tracking Portal</button>
+            <button type="button" onClick={() => scrollTo("support")} className={navCls("support")}>Support</button>
           </div>
-          <Link
-            href="/login"
-            className="rounded-lg border border-[#1A3CA8] px-4 py-1.5 text-sm font-semibold text-[#1A3CA8] hover:bg-[#1A3CA8] hover:text-white transition-colors"
+
+          {/* Hamburger (mobile only) */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 md:hidden"
           >
-            Admin Login
-          </Link>
+            {menuOpen ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div className="border-t border-slate-100 bg-white px-6 py-3 md:hidden">
+            <div className="flex flex-col gap-1 text-sm">
+              <button type="button" onClick={() => { scrollTo("services"); setMenuOpen(false); }}
+                className={`rounded-lg px-3 py-2 text-left ${navCls("services")}`}>Services</button>
+              <button type="button" onClick={() => { scrollTo("tracking"); setMenuOpen(false); }}
+                className={`rounded-lg px-3 py-2 text-left ${navCls("tracking")}`}>Tracking Portal</button>
+              <button type="button" onClick={() => { scrollTo("support"); setMenuOpen(false); }}
+                className={`rounded-lg px-3 py-2 text-left ${navCls("support")}`}>Support</button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero + search */}
@@ -696,9 +716,6 @@ export function TrackingPortal() {
             <button type="button" onClick={() => scrollTo("support")} className="hover:text-slate-600">
               Support
             </button>
-            <Link href="/login" className="hover:text-slate-600">
-              Admin Portal
-            </Link>
           </div>
         </div>
       </footer>

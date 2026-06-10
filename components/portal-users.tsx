@@ -18,6 +18,7 @@ type Props = {
     systemAdmins: number;
     courierFleet: number;
     authExceptions: number;
+    onDutyCount: number;
   };
 };
 
@@ -102,8 +103,16 @@ export function PortalUsers({ users: initialUsers, stats }: Props) {
         ]);
         setTimeout(() => { setShowAddForm(false); setAddStatus(null); }, 1500);
       } else {
-        const msg = json?.error?.message ?? "Failed to create user. Please try again.";
-        setAddStatus("err:" + msg);
+        const base = json?.error?.message ?? "Failed to create user. Please try again.";
+        const fieldErrors = json?.error?.details?.fieldErrors as Record<string, string[]> | undefined;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const msgs = Object.entries(fieldErrors)
+            .map(([f, errs]) => `${f}: ${(errs as string[]).join(", ")}`)
+            .join(" · ");
+          setAddStatus("err:" + base + " — " + msgs);
+        } else {
+          setAddStatus("err:" + base);
+        }
       }
     } catch {
       setAddStatus("err:Network error. Please check your connection and try again.");
@@ -158,7 +167,7 @@ export function PortalUsers({ users: initialUsers, stats }: Props) {
         {[
           { label: "Active Operators", value: stats.activeOperators, sub: "+4 this week", subCls: "text-green-500" },
           { label: "System Admins", value: stats.systemAdmins, sub: "Fixed capacity", subCls: "text-slate-400" },
-          { label: "Courier Fleet", value: stats.courierFleet, sub: `${Math.round(stats.courierFleet * 0.8)} currently on duty`, subCls: "text-blue-500" },
+          { label: "Courier Fleet", value: stats.courierFleet, sub: `${stats.onDutyCount} currently on duty`, subCls: "text-blue-500" },
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.label}</p>

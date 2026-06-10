@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PortalPackages } from "@/components/portal-packages";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PackageStatus } from "@/lib/types";
@@ -24,5 +25,9 @@ export default async function SuperadminPackagesPage() {
     created_at: typeof pkg.created_at === "string" ? pkg.created_at : "",
   }));
 
-  return <PortalPackages packages={packages} basePath="/superadmin" />;
+  return (
+    <Suspense>
+      <PortalPackages packages={packages} basePath="/superadmin" />
+    </Suspense>
+  );
 }

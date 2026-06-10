@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const MapPicker = dynamic(() => import("./map-picker").then((m) => m.MapPicker), {
@@ -52,24 +52,11 @@ function Field({
   );
 }
 
-function generateResiPreview() {
-  const year = new Date().getFullYear();
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return `NEKO-${year}-${code}`;
-}
-
 export function PortalInputPackage({ redirectTo }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [resiPreview, setResiPreview] = useState("");
-
-  useEffect(() => {
-    setResiPreview(generateResiPreview());
-  }, []);
 
   const [form, setForm] = useState({
     packageName: "",
@@ -93,6 +80,13 @@ export function PortalInputPackage({ redirectTo }: Props) {
 
   function set(field: string) {
     return (val: string) => setForm((prev) => ({ ...prev, [field]: val }));
+  }
+
+  function setPhone(field: string) {
+    return (val: string) => {
+      const filtered = val.replace(/[^\d+\-() ]/g, "");
+      setForm((prev) => ({ ...prev, [field]: filtered }));
+    };
   }
 
   const fullAddress = [form.streetAddress, form.city, form.state, form.zip].filter(Boolean).join(", ");
@@ -129,7 +123,22 @@ export function PortalInputPackage({ redirectTo }: Props) {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setError(json?.error?.message ?? "Failed to save package");
+        const base = json?.error?.message ?? "Failed to save package";
+        const fieldErrors = json?.error?.details?.fieldErrors as Record<string, string[]> | undefined;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const labels: Record<string, string> = {
+            packageName: "Package Name", senderName: "Sender Name", senderPhone: "Sender Phone",
+            senderEmail: "Sender Email", receiverName: "Receiver Name", receiverPhone: "Receiver Phone",
+            receiverAddress: "Address", destinationCity: "City",
+            weightKg: "Weight (kg)", lengthCm: "Length (cm)", widthCm: "Width (cm)", heightCm: "Height (cm)",
+          };
+          const msgs = Object.entries(fieldErrors)
+            .map(([f, errs]) => `${labels[f] ?? f}: ${(errs as string[]).join(", ")}`)
+            .join(" · ");
+          setError(`${base} — ${msgs}`);
+        } else {
+          setError(base);
+        }
         return;
       }
       setSuccess(`Package created: ${json.data.resi}`);
@@ -183,7 +192,7 @@ export function PortalInputPackage({ redirectTo }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Full Name" id="senderName" placeholder="e.g. Satoshi Nakamoto" value={form.senderName} onChange={set("senderName")} required />
-              <Field label="Contact Number" id="senderContact" placeholder="+1 (555) 000-0000" value={form.senderContact} onChange={set("senderContact")} />
+              <Field label="Contact Number" id="senderContact" placeholder="+1 (555) 000-0000" value={form.senderContact} onChange={setPhone("senderContact")} />
               <Field label="Email Address" id="senderEmail" type="email" placeholder="sender@provider.com" value={form.senderEmail} onChange={set("senderEmail")} className="col-span-2" />
             </div>
           </div>
@@ -202,7 +211,7 @@ export function PortalInputPackage({ redirectTo }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Full Name" id="receiverName" placeholder="e.g. Vitalik Buterin" value={form.receiverName} onChange={set("receiverName")} required />
-              <Field label="Contact Number" id="receiverContact" placeholder="+44 20 7946 0958" value={form.receiverContact} onChange={set("receiverContact")} />
+              <Field label="Contact Number" id="receiverContact" placeholder="+44 20 7946 0958" value={form.receiverContact} onChange={setPhone("receiverContact")} />
             </div>
           </div>
 
@@ -287,19 +296,17 @@ export function PortalInputPackage({ redirectTo }: Props) {
 
           {/* Identifier Generator */}
           <div className="rounded-xl border border-slate-200 bg-[#1A3CA8] p-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Identifier Generator</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-200">Tracking ID</p>
             <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#162E8A] px-3 py-2">
-              <p className="flex-1 font-mono text-sm font-bold text-white"># {resiPreview}</p>
-              <button
-                type="button"
-                onClick={() => setResiPreview(generateResiPreview())}
-                className="rounded-md bg-white/20 px-2 py-1 text-xs font-semibold text-white hover:bg-white/30 transition"
-              >
-                Generate
-              </button>
+              <svg width="14" height="14" className="shrink-0 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              <p className="flex-1 font-mono text-sm font-semibold text-blue-100">
+                {success ? success.replace("Package created: ", "") : "NEKO-" + new Date().getFullYear() + "-????"}
+              </p>
             </div>
             <p className="mt-2 text-xs text-blue-200">
-              * Tracking number will be unique and encrypted upon generation.
+              * Tracking number is auto-assigned by the server upon save.
             </p>
           </div>
 

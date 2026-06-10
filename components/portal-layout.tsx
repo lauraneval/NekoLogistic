@@ -118,6 +118,7 @@ export function PortalLayout({ children, role, userName }: PortalLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -356,7 +357,15 @@ export function PortalLayout({ children, role, userName }: PortalLayoutProps) {
             </svg>
             <input
               type="text"
-              placeholder="Search tracking ID or packages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  const base = role === "admin_gudang" ? "/admin-gudang" : "/superadmin";
+                  router.push(`${base}/packages?q=${encodeURIComponent(searchQuery.trim())}`);
+                }
+              }}
+              placeholder="Search tracking ID or packages…"
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1A3CA8] focus:ring-1 focus:ring-[#1A3CA8]"
             />
           </div>
@@ -470,7 +479,7 @@ export function PortalLayout({ children, role, userName }: PortalLayoutProps) {
                         id="profile-phone"
                         type="tel"
                         value={profileForm.phoneNumber}
-                        onChange={(e) => setProfileForm((f) => ({ ...f, phoneNumber: e.target.value }))}
+                        onChange={(e) => setProfileForm((f) => ({ ...f, phoneNumber: e.target.value.replace(/[^\d+\-() ]/g, "") }))}
                         className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#1A3CA8] focus:ring-1 focus:ring-[#1A3CA8]"
                         placeholder="e.g. +62 812 3456 7890"
                       />

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { packageStatusLabels, type PackageStatus } from "@/lib/types";
 
 type PackageItem = {
@@ -73,9 +74,17 @@ function senderColor(name: string) {
 const PAGE_SIZE = 25;
 
 export function PortalPackages({ packages, basePath }: Props) {
+  const searchParams = useSearchParams();
   const [filter, setFilter] = useState<string>("ALL");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [page, setPage] = useState(1);
+
+  // Sync search state when URL ?q param changes (e.g. navigated from top-bar search)
+  useEffect(() => {
+    const q = searchParams.get("q") ?? "";
+    setSearch(q);
+    if (q) setPage(1);
+  }, [searchParams]);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [localPackages, setLocalPackages] = useState(packages);

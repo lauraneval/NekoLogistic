@@ -67,6 +67,7 @@ export default async function SuperadminPage() {
 
   return (
     <PortalDashboard
+      basePath="/superadmin"
       data={{
         totalPackages: total,
         inTransit: inTransit ?? 0,

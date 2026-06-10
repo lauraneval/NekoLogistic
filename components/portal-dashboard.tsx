@@ -32,7 +32,7 @@ type DashboardData = {
   recentActivities: RecentActivity[];
 };
 
-type Props = { data: DashboardData };
+type Props = { data: DashboardData; basePath: string };
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -62,7 +62,7 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(hrs / 24)} day${Math.floor(hrs / 24) > 1 ? "s" : ""} ago`;
 }
 
-export function PortalDashboard({ data }: Props) {
+export function PortalDashboard({ data, basePath }: Props) {
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
   const deliveredPct = data.totalPackages > 0
@@ -83,7 +83,7 @@ export function PortalDashboard({ data }: Props) {
         </div>
         <div className="flex gap-3">
           <a
-            href="packages/new"
+            href={`${basePath}/packages/new`}
             className="flex items-center gap-2 rounded-lg bg-[#1A3CA8] px-4 py-2 text-sm font-medium text-white hover:bg-[#1530a0] transition"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -188,7 +188,7 @@ export function PortalDashboard({ data }: Props) {
             <div className="relative flex h-36 w-36 items-center justify-center rounded-2xl border-4 border-[#1A3CA8] bg-[#1A3CA8]">
               <div className="text-center text-white">
                 <p className="text-3xl font-bold">{data.successRate.toFixed(0)}%</p>
-                <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">On Time</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">Success</p>
               </div>
             </div>
           </div>
@@ -222,7 +222,7 @@ export function PortalDashboard({ data }: Props) {
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-800">Recent Logistics Activity</h2>
-          <a href="packages" className="text-xs font-semibold text-[#1A3CA8] hover:underline">
+          <a href={`${basePath}/packages`} className="text-xs font-semibold text-[#1A3CA8] hover:underline">
             View All Shipments
           </a>
         </div>

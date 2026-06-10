@@ -84,6 +84,18 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   const role = (profile?.role as string | undefined) ?? "kurir";
+
+  if (role === "kurir") {
+    await supabase.auth.signOut();
+    if (wantsHtmlResponse(req)) {
+      return NextResponse.redirect(new URL("/login?auth=courier", req.url), 303);
+    }
+    return fail(
+      "This portal is for admin use only. Courier accounts must use the NekoLogistic mobile app.",
+      403,
+    );
+  }
+
   const redirectTo = role === "admin_gudang" ? "/admin-gudang" : `/${role}`;
 
   await supabaseAdmin

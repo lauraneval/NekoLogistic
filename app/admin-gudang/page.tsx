@@ -54,6 +54,7 @@ export default async function AdminGudangPage() {
 
   return (
     <PortalDashboard
+      basePath="/admin-gudang"
       data={{
         totalPackages: total,
         inTransit: inTransit ?? 0,

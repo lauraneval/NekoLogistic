@@ -1,26 +1,30 @@
 import { z } from "zod";
 
-const safeText = z
+const noAngleBrackets = z.regex(/^[^<>]*$/, "Input cannot contain angle brackets");
+
+const safeText = z.string().trim().min(2).max(120).check(noAngleBrackets);
+
+// Permissive email — accepts short TLDs like a@a.a, used for internal ops data
+const emailField = z
   .string()
   .trim()
-  .min(2)
-  .max(120)
-  .regex(/^[^<>]*$/, "Input cannot contain angle brackets");
+  .max(254)
+  .check(z.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email address"));
 
 export const resiSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^NEKO-\d{4}-[A-Z0-9]{4}$/, "Invalid tracking number format");
+  .check(z.regex(/^NEKO-\d{4}-[A-Z0-9]{4}$/, "Invalid tracking number format"));
 
 export const createPackageSchema = z.object({
   packageName: safeText,
   senderName: safeText,
   senderPhone: z.string().trim().max(30).optional().nullable(),
-  senderEmail: z.string().trim().email().optional().nullable(),
+  senderEmail: emailField.optional().nullable(),
   receiverName: safeText,
   receiverPhone: z.string().trim().max(30).optional().nullable(),
-  receiverAddress: z.string().trim().min(6).max(240).regex(/^[^<>]*$/),
+  receiverAddress: z.string().trim().min(6).max(240).check(noAngleBrackets),
   receiverState: z.string().trim().max(80).optional().nullable(),
   receiverZip: z.string().trim().max(20).optional().nullable(),
   destinationCity: safeText,
@@ -39,17 +43,17 @@ export const createBaggingSchema = z.object({
     .toUpperCase()
     .min(1)
     .max(32)
-    .regex(/^[A-Z0-9-]+$/)
+    .check(z.regex(/^[A-Z0-9-]+$/))
     .optional(),
   destinationCity: safeText.optional(),
   resiNumbers: z.array(z.string().trim().min(1).max(64)).max(500).default([]),
-  packageIds: z.array(z.string().uuid()).max(500).default([]),
+  packageIds: z.array(z.uuid()).max(500).default([]),
 });
 
 export const createManifestSchema = createBaggingSchema;
 
 export const updatePackageStatusSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   status: z.enum([
     "PACKAGE_CREATED",
     "IN_WAREHOUSE",
@@ -60,23 +64,23 @@ export const updatePackageStatusSchema = z.object({
 });
 
 export const updatePackageSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   packageName: safeText,
   receiverName: safeText,
-  receiverAddress: z.string().trim().min(6).max(240).regex(/^[^<>]*$/),
+  receiverAddress: z.string().trim().min(6).max(240).check(noAngleBrackets),
   destinationCity: safeText,
   weightKg: z.number().positive().max(100),
 });
 
 export const registerUserSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: emailField.toLowerCase(),
   password: z.string().min(10).max(64),
   fullName: safeText,
   role: z.enum(["admin_gudang", "kurir"]),
 });
 
 export const updateUserSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.uuid(),
   fullName: safeText,
   role: z.enum(["admin_gudang", "kurir"]),
 });

@@ -14,6 +14,7 @@ async function getAuthMessage(searchParams: LoginPageProps["searchParams"]) {
   if (value === "required") return "Please log in to access the internal portal.";
   if (value === "invalid") return "Invalid email or password.";
   if (value === "timeout") return "Your session expired due to inactivity. Please log in again.";
+  if (value === "courier") return "Courier accounts must use the NEKO mobile app. This web portal is for admin use only.";
   return null;
 }
 
@@ -34,7 +35,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     const role = profile?.role as string | undefined;
     if (role === "superadmin") redirect("/superadmin");
     if (role === "admin_gudang") redirect("/admin-gudang");
-    if (role === "kurir") redirect("/kurir");
   }
 
   const authMessage = await getAuthMessage(searchParams);
