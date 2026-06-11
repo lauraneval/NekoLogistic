@@ -23,6 +23,7 @@ export const adminPackageStatuses = [
   "OUT_FOR_DELIVERY",
   "IN_TRANSIT",
   "DELIVERED",
+  "FAILED_DELIVERY",
 ] as const satisfies PackageStatus[];
 
 export type TrackingEvent = {
