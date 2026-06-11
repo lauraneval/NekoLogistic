@@ -86,11 +86,11 @@ export function SuperadminDashboard({ initialData }: Props) {
   });
 
   function roleLabel(role: string) {
-    return role === "admin_gudang" ? "Admin Gudang" : role === "kurir" ? "Kurir" : role;
+    return role === "admin_gudang" ? "Warehouse Admin" : role === "kurir" ? "Courier" : role;
   }
 
   function packageName(pkg: PackageItem | BagItemPackage) {
-    return (pkg.package_name ?? "").trim() || `Paket ${pkg.resi}`;
+    return (pkg.package_name ?? "").trim() || `Package ${pkg.resi}`;
   }
 
   function packageCity(pkg: PackageItem | BagItemPackage) {
@@ -111,27 +111,25 @@ export function SuperadminDashboard({ initialData }: Props) {
     const fullName = typeof metadata.full_name === "string" ? metadata.full_name : null;
     const city = typeof metadata.destination_city === "string" ? metadata.destination_city : null;
 
+    const rolePart     = role     ? " as " + role           : "";
+    const namePart     = fullName ? " " + fullName           : "";
+    const toRolePart   = role     ? " to role " + role       : "";
+    const deleteRole   = role     ? " (" + role + ")"        : "";
+    const resiPart     = resi     ? " with tracking no. " + resi : "";
+    const resiRef      = resi     ? " " + resi               : "";
+    const cityPart     = city     ? " for " + city           : "";
+
     switch (log.action) {
-      case "REGISTER_USER":
-        return `Mendaftarkan user baru${role ? ` sebagai ${role}` : ""}.`;
-      case "UPDATE_USER":
-        return `Mengubah data user${fullName ? ` ${fullName}` : ""}${role ? ` menjadi role ${role}` : ""}.`;
-      case "DELETE_USER":
-        return `Menghapus user${fullName ? ` ${fullName}` : ""}${role ? ` (${role})` : ""}.`;
-      case "CREATE_PACKAGE":
-        return `Membuat paket baru${resi ? ` dengan resi ${resi}` : ""}.`;
-      case "UPDATE_PACKAGE":
-        return `Mengedit informasi paket${resi ? ` ${resi}` : ""}.`;
-      case "UPDATE_PACKAGE_STATUS":
-        return `Mengubah status paket${resi ? ` ${resi}` : ""}.`;
-      case "DELETE_PACKAGE":
-        return `Menghapus paket${resi ? ` ${resi}` : ""} dari database.`;
-      case "CREATE_BAGGING":
-        return `Membuat atau mengisi bagging${city ? ` tujuan ${city}` : ""}.`;
-      case "REMOVE_PACKAGE_FROM_BAGGING":
-        return "Mengeluarkan paket dari bagging tanpa menghapus paketnya.";
-      default:
-        return `${log.action.replaceAll("_", " ").toLowerCase()} pada ${log.entity}.`;
+      case "REGISTER_USER":   return "Registered new user" + rolePart + ".";
+      case "UPDATE_USER":     return "Updated user" + namePart + toRolePart + ".";
+      case "DELETE_USER":     return "Deleted user" + namePart + deleteRole + ".";
+      case "CREATE_PACKAGE":  return "Created new package" + resiPart + ".";
+      case "UPDATE_PACKAGE":  return "Edited package info" + resiRef + ".";
+      case "UPDATE_PACKAGE_STATUS": return "Updated package status" + resiRef + ".";
+      case "DELETE_PACKAGE":  return "Deleted package" + resiRef + " from database.";
+      case "CREATE_BAGGING":  return "Created or filled bag" + cityPart + ".";
+      case "REMOVE_PACKAGE_FROM_BAGGING": return "Removed package from bag without deleting it.";
+      default: return log.action.replaceAll("_", " ").toLowerCase() + " on " + log.entity + ".";
     }
   }
 
@@ -144,13 +142,13 @@ export function SuperadminDashboard({ initialData }: Props) {
       const json = await response.json();
 
       if (!response.ok || !json.ok) {
-        setError(json?.error?.message ?? "Gagal mengambil analytics");
+        setError(json?.error?.message ?? "Failed to load analytics");
         return;
       }
 
       setData(json.data as AnalyticsResponse);
     } catch {
-      setError("Terjadi kesalahan jaringan");
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -171,11 +169,11 @@ export function SuperadminDashboard({ initialData }: Props) {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setCreateStatus(json?.error?.message ?? "Gagal membuat akun");
+      setCreateStatus(json?.error?.message ?? "Failed to create account");
       return;
     }
 
-    setCreateStatus(`Akun ${json.data.email} berhasil dibuat`);
+    setCreateStatus("Account " + json.data.email + " created successfully.");
     setUserForm({ email: "", password: "", fullName: "", role: "admin_gudang" });
     void loadAnalytics();
   }
@@ -208,7 +206,7 @@ export function SuperadminDashboard({ initialData }: Props) {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setError(json?.error?.message ?? "Gagal mengedit user");
+      setError(json?.error?.message ?? "Failed to update user");
       return;
     }
 
@@ -217,7 +215,7 @@ export function SuperadminDashboard({ initialData }: Props) {
   }
 
   async function handleDeleteUser(user: UserItem) {
-    const confirmed = window.confirm(`Hapus user ${user.full_name}?`);
+    const confirmed = window.confirm("Delete user " + user.full_name + "?");
 
     if (!confirmed) {
       return;
@@ -231,7 +229,7 @@ export function SuperadminDashboard({ initialData }: Props) {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setError(json?.error?.message ?? "Gagal menghapus user");
+      setError(json?.error?.message ?? "Failed to delete user");
       return;
     }
 
@@ -242,11 +240,11 @@ export function SuperadminDashboard({ initialData }: Props) {
     <section className="space-y-8">
       <div className="grid gap-4 md:grid-cols-3">
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.15em] text-slate-500">Total Paket</p>
+          <p className="text-xs uppercase tracking-[0.15em] text-slate-500">Total Packages</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">{loading ? "..." : data.metrics.totalPackages}</p>
         </article>
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.15em] text-slate-500">Paket Sukses</p>
+          <p className="text-xs uppercase tracking-[0.15em] text-slate-500">Delivered</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">{loading ? "..." : data.metrics.deliveredPackages}</p>
         </article>
         <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -257,12 +255,12 @@ export function SuperadminDashboard({ initialData }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-mono text-xl font-semibold text-slate-900">Daftarkan User Baru</h2>
+          <h2 className="font-mono text-xl font-semibold text-slate-900">Register New User</h2>
           <form onSubmit={handleCreateUser} className="mt-4 space-y-3">
             <input
               value={userForm.fullName}
               onChange={(event) => setUserForm((prev) => ({ ...prev, fullName: event.target.value }))}
-              placeholder="Nama Lengkap"
+              placeholder="Full Name"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               required
             />
@@ -278,7 +276,7 @@ export function SuperadminDashboard({ initialData }: Props) {
               value={userForm.password}
               onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
               type="password"
-              placeholder="Password minimal 10 karakter"
+              placeholder="Password (min. 10 characters)"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               minLength={10}
               required
@@ -288,11 +286,11 @@ export function SuperadminDashboard({ initialData }: Props) {
               onChange={(event) => setUserForm((prev) => ({ ...prev, role: event.target.value }))}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             >
-              <option value="admin_gudang">Admin Gudang</option>
-              <option value="kurir">Kurir</option>
+              <option value="admin_gudang">Warehouse Admin</option>
+              <option value="kurir">Courier</option>
             </select>
             <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" type="submit">
-              Simpan User
+              Save User
             </button>
             {createStatus ? <p className="text-sm text-slate-600">{createStatus}</p> : null}
           </form>
@@ -318,11 +316,11 @@ export function SuperadminDashboard({ initialData }: Props) {
                 <p className="text-xs text-slate-500">
                   Target: {log.entity} {log.entity_id ?? "-"}
                 </p>
-                <p className="text-xs text-slate-500">{new Date(log.created_at).toLocaleString("id-ID")}</p>
+                <p className="text-xs text-slate-500">{new Date(log.created_at).toLocaleString("en-US")}</p>
               </article>
             ))}
             {!loading && data.recentActivities.length === 0 ? (
-              <p className="text-sm text-slate-500">Belum ada log.</p>
+              <p className="text-sm text-slate-500">No activity logs yet.</p>
             ) : null}
           </div>
         </section>
@@ -330,7 +328,7 @@ export function SuperadminDashboard({ initialData }: Props) {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-mono text-xl font-semibold text-slate-900">Daftar User</h2>
+          <h2 className="font-mono text-xl font-semibold text-slate-900">User List</h2>
           <button
             type="button"
             onClick={() => void loadAnalytics()}
@@ -340,14 +338,14 @@ export function SuperadminDashboard({ initialData }: Props) {
           </button>
         </div>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-190 text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <tr>
-                <th className="py-3 pe-3">Nama</th>
+                <th className="py-3 pe-3">Name</th>
                 <th className="px-3 py-3">Email</th>
                 <th className="px-3 py-3">Role</th>
-                <th className="px-3 py-3">Dibuat</th>
-                <th className="py-3 ps-3">Aksi</th>
+                <th className="px-3 py-3">Created</th>
+                <th className="py-3 ps-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -379,8 +377,8 @@ export function SuperadminDashboard({ initialData }: Props) {
                           }
                           className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
                         >
-                          <option value="admin_gudang">Admin Gudang</option>
-                          <option value="kurir">Kurir</option>
+                          <option value="admin_gudang">Warehouse Admin</option>
+                          <option value="kurir">Courier</option>
                         </select>
                       ) : (
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -389,7 +387,7 @@ export function SuperadminDashboard({ initialData }: Props) {
                       )}
                     </td>
                     <td className="px-3 py-3 text-slate-600">
-                      {new Date(user.created_at).toLocaleString("id-ID")}
+                      {new Date(user.created_at).toLocaleString("en-US")}
                     </td>
                     <td className="py-3 ps-3">
                       {isEditing ? (
@@ -399,14 +397,14 @@ export function SuperadminDashboard({ initialData }: Props) {
                             onClick={() => void handleUpdateUser(user.user_id)}
                             className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
                           >
-                            Simpan
+                            Save
                           </button>
                           <button
                             type="button"
                             onClick={cancelEditUser}
                             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"
                           >
-                            Batal
+                            Cancel
                           </button>
                         </div>
                       ) : (
@@ -423,7 +421,7 @@ export function SuperadminDashboard({ initialData }: Props) {
                             onClick={() => void handleDeleteUser(user)}
                             className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600"
                           >
-                            Hapus
+                            Delete
                           </button>
                         </div>
                       )}
@@ -433,21 +431,21 @@ export function SuperadminDashboard({ initialData }: Props) {
               })}
             </tbody>
           </table>
-          {!data.users.length ? <p className="py-6 text-sm text-slate-500">Belum ada user.</p> : null}
+          {!data.users.length ? <p className="py-6 text-sm text-slate-500">No users yet.</p> : null}
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="font-mono text-xl font-semibold text-slate-900">Daftar Paket</h2>
+        <h2 className="font-mono text-xl font-semibold text-slate-900">Package List</h2>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <table className="w-full min-w-215 text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <tr>
-                <th className="py-3 pe-3">Resi</th>
-                <th className="px-3 py-3">Paket</th>
-                <th className="px-3 py-3">Alamat</th>
-                <th className="px-3 py-3">Kota</th>
-                <th className="px-3 py-3">Berat</th>
+                <th className="py-3 pe-3">Tracking No.</th>
+                <th className="px-3 py-3">Package</th>
+                <th className="px-3 py-3">Address</th>
+                <th className="px-3 py-3">City</th>
+                <th className="px-3 py-3">Weight</th>
                 <th className="py-3 ps-3">Status</th>
               </tr>
             </thead>
@@ -471,12 +469,12 @@ export function SuperadminDashboard({ initialData }: Props) {
               ))}
             </tbody>
           </table>
-          {!data.packages.length ? <p className="py-6 text-sm text-slate-500">Belum ada paket.</p> : null}
+          {!data.packages.length ? <p className="py-6 text-sm text-slate-500">No packages yet.</p> : null}
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="font-mono text-xl font-semibold text-slate-900">Daftar Bagging</h2>
+        <h2 className="font-mono text-xl font-semibold text-slate-900">Bag List</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {data.baggings.map((bag) => {
             const items = bag.bag_items ?? [];
@@ -486,10 +484,10 @@ export function SuperadminDashboard({ initialData }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-mono text-sm font-semibold text-slate-900">{bag.bag_code}</p>
-                    <p className="text-sm text-slate-600">Kota tujuan: {bag.destination_city ?? "-"}</p>
+                    <p className="text-sm text-slate-600">Destination: {bag.destination_city ?? "-"}</p>
                   </div>
                   <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                    {items.length} paket
+                    {items.length} {items.length === 1 ? "package" : "packages"}
                   </span>
                 </div>
                 <div className="mt-3 space-y-2">
@@ -508,7 +506,7 @@ export function SuperadminDashboard({ initialData }: Props) {
                       </div>
                     ) : (
                       <p key={`${bag.id}-${index}`} className="text-sm text-slate-500">
-                        Detail paket tidak tersedia.
+                        Package details not available.
                       </p>
                     );
                   })}
@@ -517,7 +515,7 @@ export function SuperadminDashboard({ initialData }: Props) {
             );
           })}
         </div>
-        {!data.baggings.length ? <p className="mt-4 text-sm text-slate-500">Belum ada bagging.</p> : null}
+        {!data.baggings.length ? <p className="mt-4 text-sm text-slate-500">No bags yet.</p> : null}
       </section>
     </section>
   );

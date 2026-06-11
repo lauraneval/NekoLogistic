@@ -55,8 +55,8 @@ function roleColor(role: string | null) {
 }
 function roleLabel(role: string | null) {
   if (role === "superadmin")  return "Superadmin";
-  if (role === "admin_gudang") return "Admin";
-  if (role === "kurir")       return "Kurir";
+  if (role === "admin_gudang") return "Warehouse Admin";
+  if (role === "kurir")       return "Courier";
   return "—";
 }
 function initials(name: string) {

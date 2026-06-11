@@ -75,9 +75,9 @@ export function MapPicker({ lat, lng, onChange }: Readonly<Props>) {
       const data = await res.json() as NominatimResult[];
       setResults(data);
       setShowResults(data.length > 0);
-      if (data.length === 0) setGeoError("Lokasi tidak ditemukan. Coba kata kunci lain.");
+      if (data.length === 0) setGeoError("Location not found. Try a different keyword.");
     } catch {
-      setGeoError("Gagal mencari lokasi. Periksa koneksi internet.");
+      setGeoError("Search failed. Please check your internet connection.");
       setResults([]);
     }
     setSearching(false);
@@ -187,9 +187,9 @@ export function MapPicker({ lat, lng, onChange }: Readonly<Props>) {
             onChange={handleQueryChange}
             onFocus={() => { if (results.length > 0) setShowResults(true); }}
             onBlur={() => { setTimeout(() => setShowResults(false), 180); }}
-            placeholder="Cari lokasi... (cth: Jl. Sudirman Jakarta)"
+            placeholder="Search location... (e.g. Jl. Sudirman Jakarta)"
             className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
-            aria-label="Cari lokasi pengiriman"
+            aria-label="Search delivery location"
             autoComplete="off"
           />
           {searching && (
@@ -203,7 +203,7 @@ export function MapPicker({ lat, lng, onChange }: Readonly<Props>) {
               type="button"
               onClick={() => { setQuery(""); setResults([]); setShowResults(false); setGeoError(null); }}
               className="shrink-0 text-slate-300 hover:text-slate-500 transition"
-              aria-label="Hapus pencarian"
+              aria-label="Clear search"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M18 6 6 18M6 6l12 12" />
@@ -242,7 +242,7 @@ export function MapPicker({ lat, lng, onChange }: Readonly<Props>) {
         <div className="absolute bottom-2 left-2 z-10 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow">
           {lat !== null && lng !== null
             ? `${lat.toFixed(6)}, ${lng.toFixed(6)}`
-            : "Klik peta atau cari lokasi di atas"}
+            : "Click map or search a location above"}
         </div>
       </div>
     </div>

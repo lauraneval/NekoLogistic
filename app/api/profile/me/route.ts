@@ -14,19 +14,25 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const supabase = createSupabaseAdminClient();
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select(
-      "user_id, full_name, email, role, phone_number, address, employee_id, avatar_url, last_login_at, created_at",
-    )
-    .eq("user_id", auth.data.userId)
-    .maybeSingle();
 
-  if (error || !profile) {
+  const [{ data: profile, error: profileError }, { data: authUser, error: authError }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("user_id, full_name, role, phone_number, address, last_login_at, created_at")
+        .eq("user_id", auth.data.userId)
+        .maybeSingle(),
+      supabase.auth.admin.getUserById(auth.data.userId),
+    ]);
+
+  if (profileError || !profile) {
     return fail("Profile not found", 404);
   }
 
-  return ok(profile);
+  return ok({
+    ...profile,
+    email: authError ? null : (authUser.user?.email ?? null),
+  });
 }
 
 export async function PATCH(req: Request) {

@@ -264,7 +264,7 @@ export function PortalLayout({ children, role, userName }: PortalLayoutProps) {
   ];
 
   const roleLabel =
-    role === "superadmin" ? "Admin Control" : "Admin Gudang";
+    role === "superadmin" ? "Admin Control" : "Warehouse Admin";
 
   const initials = userName
     .split(" ")

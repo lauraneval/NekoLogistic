@@ -75,7 +75,7 @@ function packageCity(pkg: PackageItem | BagItemPackage) {
 }
 
 function packageName(pkg: PackageItem | BagItemPackage) {
-  return normalizeCity(pkg.package_name) || `Paket ${pkg.resi}`;
+  return normalizeCity(pkg.package_name) || "Package " + pkg.resi;
 }
 
 function statusLabel(status: PackageStatus) {
@@ -123,15 +123,15 @@ export function AdminGudangPanel() {
       ]);
 
       if (!packagesResponse.ok || !packagesJson.ok) {
-        throw new Error(packagesJson?.error?.message ?? "Gagal mengambil paket");
+        throw new Error(packagesJson?.error?.message ?? "Failed to load packages");
       }
 
       if (!baggingsResponse.ok || !baggingsJson.ok) {
-        throw new Error(baggingsJson?.error?.message ?? "Gagal mengambil bagging");
+        throw new Error(baggingsJson?.error?.message ?? "Failed to load bags");
       }
 
       if (!couriersResponse.ok || !couriersJson.ok) {
-        throw new Error(couriersJson?.error?.message ?? "Gagal mengambil daftar kurir");
+        throw new Error(couriersJson?.error?.message ?? "Failed to load courier list");
       }
 
       setPackages(packagesJson.data as PackageItem[]);
@@ -146,7 +146,7 @@ export function AdminGudangPanel() {
         ),
       );
     } catch (error) {
-      setListStatus(error instanceof Error ? error.message : "Gagal memuat data gudang");
+      setListStatus(error instanceof Error ? error.message : "Failed to load warehouse data");
     }
   }
 
@@ -188,11 +188,11 @@ export function AdminGudangPanel() {
     setLoading(false);
 
     if (!response.ok || !json.ok) {
-      setPackageStatus(json?.error?.message ?? "Gagal membuat paket");
+      setPackageStatus(json?.error?.message ?? "Failed to create package");
       return;
     }
 
-    setPackageStatus(`Paket berhasil dibuat. Resi: ${json.data.resi}`);
+    setPackageStatus("Package created. Tracking no.: " + json.data.resi);
     setCreatePackageForm(emptyPackageForm);
     await refreshData();
   }
@@ -227,13 +227,11 @@ export function AdminGudangPanel() {
     setLoading(false);
 
     if (!response.ok || !json.ok) {
-      setBaggingStatus(json?.error?.message ?? "Gagal membuat bagging");
+      setBaggingStatus(json?.error?.message ?? "Failed to create bag");
       return;
     }
 
-    setBaggingStatus(
-      `Bagging ${json.data.bag_code} berhasil. Paket tergabung: ${json.data.package_count}`,
-    );
+    setBaggingStatus("Bag " + json.data.bag_code + " created. Packages added: " + json.data.package_count);
     setBaggingForm({ bagCode: "", destinationCity: "", resiNumbers: "" });
     setSelectedPackageIds([]);
     await refreshData();
@@ -250,7 +248,7 @@ export function AdminGudangPanel() {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setListStatus(json?.error?.message ?? "Gagal mengubah status paket");
+      setListStatus(json?.error?.message ?? "Failed to update package status");
       return;
     }
 
@@ -297,7 +295,7 @@ export function AdminGudangPanel() {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setListStatus(json?.error?.message ?? "Gagal mengedit paket");
+      setListStatus(json?.error?.message ?? "Failed to update package");
       return;
     }
 
@@ -306,7 +304,7 @@ export function AdminGudangPanel() {
   }
 
   async function handleDeletePackage(packageId: string) {
-    const confirmed = globalThis.confirm("Hapus paket ini? Data paket akan dihapus dari database.");
+    const confirmed = globalThis.confirm("Delete this package? It will be permanently removed from the database.");
 
     if (!confirmed) {
       return;
@@ -320,7 +318,7 @@ export function AdminGudangPanel() {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setListStatus(json?.error?.message ?? "Gagal menghapus paket");
+      setListStatus(json?.error?.message ?? "Failed to delete package");
       return;
     }
 
@@ -337,7 +335,7 @@ export function AdminGudangPanel() {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setListStatus(json?.error?.message ?? "Gagal mengeluarkan paket dari bagging");
+      setListStatus(json?.error?.message ?? "Failed to remove package from bag");
       return;
     }
 
@@ -366,7 +364,7 @@ export function AdminGudangPanel() {
     const json = await response.json();
 
     if (!response.ok || !json.ok) {
-      setListStatus(json?.error?.message ?? "Gagal memperbarui assignment kurir");
+      setListStatus(json?.error?.message ?? "Failed to update courier assignment");
       return;
     }
 
@@ -392,7 +390,7 @@ export function AdminGudangPanel() {
               onChange={(event) =>
                 setCreatePackageForm((prev) => ({ ...prev, packageName: event.target.value }))
               }
-              placeholder="Nama paket"
+              placeholder="Package name"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               required
             />
@@ -401,7 +399,7 @@ export function AdminGudangPanel() {
               onChange={(event) =>
                 setCreatePackageForm((prev) => ({ ...prev, receiverName: event.target.value }))
               }
-              placeholder="Nama penerima"
+              placeholder="Recipient name"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               required
             />
@@ -410,7 +408,7 @@ export function AdminGudangPanel() {
               onChange={(event) =>
                 setCreatePackageForm((prev) => ({ ...prev, receiverAddress: event.target.value }))
               }
-              placeholder="Alamat lengkap pengiriman"
+              placeholder="Full delivery address"
               className="min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               required
             />
@@ -420,7 +418,7 @@ export function AdminGudangPanel() {
                 onChange={(event) =>
                   setCreatePackageForm((prev) => ({ ...prev, destinationCity: event.target.value }))
                 }
-                placeholder="Kota tujuan"
+                placeholder="Destination city"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 required
               />
@@ -429,7 +427,7 @@ export function AdminGudangPanel() {
                 onChange={(event) =>
                   setCreatePackageForm((prev) => ({ ...prev, weightKg: event.target.value }))
                 }
-                placeholder="Berat (kg)"
+                placeholder="Weight (kg)"
                 type="number"
                 min={0.01}
                 step={0.01}
@@ -442,14 +440,14 @@ export function AdminGudangPanel() {
               type="submit"
               disabled={loading}
             >
-              Buat Paket
+              Create Package
             </button>
             {packageStatus ? <p className="text-sm text-slate-600">{packageStatus}</p> : null}
           </form>
         </article>
 
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-mono text-xl font-semibold text-slate-900">Bagging Manual</h2>
+          <h2 className="font-mono text-xl font-semibold text-slate-900">Manual Bagging</h2>
           <form onSubmit={handleCreateBagging} className="mt-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <input
@@ -457,7 +455,7 @@ export function AdminGudangPanel() {
                 onChange={(event) =>
                   setBaggingForm((prev) => ({ ...prev, bagCode: event.target.value.toUpperCase() }))
                 }
-                placeholder="Kode bagging opsional"
+                placeholder="Bag code (optional)"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
               <select
@@ -468,7 +466,7 @@ export function AdminGudangPanel() {
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                 required
               >
-                <option value="">Pilih kota bagging</option>
+                <option value="">Select destination city</option>
                 {destinationCities.map((city) => (
                   <option key={city} value={city}>
                     {city}
@@ -500,7 +498,7 @@ export function AdminGudangPanel() {
                 ))
               ) : (
                 <p className="px-3 py-4 text-sm text-slate-500">
-                  Pilih paket yang ingin dimasukkan ke bagging manual.
+                  Select packages to add to this bag.
                 </p>
               )}
             </div>
@@ -510,7 +508,7 @@ export function AdminGudangPanel() {
               onChange={(event) =>
                 setBaggingForm((prev) => ({ ...prev, resiNumbers: event.target.value }))
               }
-              placeholder="Tambahkan resi manual bila perlu, pisahkan koma atau baris baru"
+              placeholder="Add tracking numbers manually if needed, separated by comma or newline"
               className="min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase"
             />
             <button
@@ -518,7 +516,7 @@ export function AdminGudangPanel() {
               type="submit"
               disabled={loading}
             >
-              Buat Bagging
+              Create Bag
             </button>
             {baggingStatus ? <p className="text-sm text-slate-600">{baggingStatus}</p> : null}
           </form>
@@ -527,7 +525,7 @@ export function AdminGudangPanel() {
 
       <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="font-mono text-xl font-semibold text-slate-900">Seluruh Package</h2>
+          <h2 className="font-mono text-xl font-semibold text-slate-900">All Packages</h2>
           <button
             type="button"
             onClick={() => void refreshData()}
@@ -541,13 +539,13 @@ export function AdminGudangPanel() {
           <table className="w-full min-w-245 text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <tr>
-                <th className="py-3 pe-3">Resi</th>
-                <th className="px-3 py-3">Paket</th>
-                <th className="px-3 py-3">Alamat</th>
-                <th className="px-3 py-3">Kota</th>
-                <th className="px-3 py-3">Berat</th>
+                <th className="py-3 pe-3">Tracking No.</th>
+                <th className="px-3 py-3">Package</th>
+                <th className="px-3 py-3">Address</th>
+                <th className="px-3 py-3">City</th>
+                <th className="px-3 py-3">Weight</th>
                 <th className="py-3 ps-3">Status</th>
-                <th className="py-3 ps-3">Aksi</th>
+                <th className="py-3 ps-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -649,14 +647,14 @@ export function AdminGudangPanel() {
                               onClick={() => void handleUpdatePackage(pkg.id)}
                               className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
                             >
-                              Simpan
+                              Save
                             </button>
                             <button
                               type="button"
                               onClick={cancelEditPackage}
                               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"
                             >
-                              Batal
+                              Cancel
                             </button>
                           </div>
                         ) : (
@@ -673,7 +671,7 @@ export function AdminGudangPanel() {
                               onClick={() => void handleDeletePackage(pkg.id)}
                               className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600"
                             >
-                              Hapus
+                              Delete
                             </button>
                           </div>
                         )}
@@ -685,20 +683,20 @@ export function AdminGudangPanel() {
             </tbody>
           </table>
           {packages.length === 0 ? (
-            <p className="py-6 text-sm text-slate-500">Belum ada paket.</p>
+            <p className="py-6 text-sm text-slate-500">No packages yet.</p>
           ) : null}
         </div>
       </article>
 
       <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="font-mono text-xl font-semibold text-slate-900">Seluruh Bagging</h2>
+        <h2 className="font-mono text-xl font-semibold text-slate-900">All Bags</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {baggings.map((bag) => {
             const items = bag.bag_items ?? [];
             const assignedCourierId = bag.assigned_courier_id ?? bagAssignments[bag.id] ?? "";
             const courierLabel =
               couriers.find((courier) => courier.user_id === assignedCourierId)?.full_name ??
-              (assignedCourierId || "Belum di-assign");
+              (assignedCourierId || "Not assigned");
 
             return (
               <div key={bag.id} className="rounded-lg border border-slate-200 p-4">
@@ -706,9 +704,9 @@ export function AdminGudangPanel() {
                   <div>
                     <p className="font-mono text-sm font-semibold text-slate-900">{bag.bag_code}</p>
                     <p className="text-sm text-slate-600">
-                      Kota tujuan: {normalizeCity(bag.destination_city) || "Mengikuti paket"}
+                      Destination: {normalizeCity(bag.destination_city) || "Follows packages"}
                     </p>
-                    <p className="text-xs text-slate-500">Kurir: {courierLabel}</p>
+                    <p className="text-xs text-slate-500">Courier: {courierLabel}</p>
                   </div>
                   <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
                     {items.length} paket
@@ -725,7 +723,7 @@ export function AdminGudangPanel() {
                     }
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
-                    <option value="">Belum di-assign</option>
+                    <option value="">Not assigned</option>
                     {couriers.map((courier) => (
                       <option key={courier.user_id} value={courier.user_id}>
                         {courier.full_name} {courier.email ? `(${courier.email})` : ""}
@@ -737,7 +735,7 @@ export function AdminGudangPanel() {
                     onClick={() => void handleAssignCourier(bag)}
                     className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
                   >
-                    Simpan Kurir
+                    Save Courier
                   </button>
                 </div>
                 <div className="mt-3 space-y-2">
@@ -761,12 +759,12 @@ export function AdminGudangPanel() {
                           onClick={() => void handleRemoveFromBagging(pkg.id)}
                           className="shrink-0 rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700"
                         >
-                          Keluarkan
+                          Remove
                         </button>
                       </div>
                     ) : (
                       <p key={`${bag.id}-${index}`} className="text-sm text-slate-500">
-                        Detail paket tidak tersedia.
+                        Package details not available.
                       </p>
                     );
                   })}
@@ -776,7 +774,7 @@ export function AdminGudangPanel() {
           })}
         </div>
         {baggings.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">Belum ada data bagging.</p>
+          <p className="mt-4 text-sm text-slate-500">No bags yet.</p>
         ) : null}
       </article>
     </section>

@@ -9,12 +9,12 @@ export type PackageStatus =
   | "FAILED_DELIVERY";
 
 export const packageStatusLabels: Record<PackageStatus, string> = {
-  PACKAGE_CREATED: "Dikemas",
-  IN_WAREHOUSE: "Di bagging",
-  OUT_FOR_DELIVERY: "Siap dikirim",
-  IN_TRANSIT: "Proses pengiriman",
-  DELIVERED: "Sudah terkirim",
-  FAILED_DELIVERY: "Gagal dikirim",
+  PACKAGE_CREATED: "Packaged",
+  IN_WAREHOUSE: "In Bag",
+  OUT_FOR_DELIVERY: "Ready for Delivery",
+  IN_TRANSIT: "In Transit",
+  DELIVERED: "Delivered",
+  FAILED_DELIVERY: "Failed Delivery",
 };
 
 export const adminPackageStatuses = [
