@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { fail, ok, parseJson } from "@/lib/api";
 import { makeResi } from "@/lib/resi";
 import { requireRole } from "@/lib/auth";
@@ -7,6 +8,8 @@ import {
   updatePackageSchema,
   updatePackageStatusSchema,
 } from "@/lib/validation";
+
+const uuidSchema = z.uuid();
 import { packageStatusLabels, type PackageStatus } from "@/lib/types";
 import { makeBagCode } from "@/lib/resi";
 
@@ -400,12 +403,14 @@ export async function DELETE(req: Request) {
     return auth.error;
   }
 
-  const id = new URL(req.url).searchParams.get("id");
+  const rawId = new URL(req.url).searchParams.get("id");
+  const parsedId = uuidSchema.safeParse(rawId);
 
-  if (!id) {
-    return fail("Package id is required", 422);
+  if (!parsedId.success) {
+    return fail("Invalid package id", 422);
   }
 
+  const id = parsedId.data;
   const supabase = createSupabaseAdminClient();
   const { data: pkg } = await supabase
     .from("packages")

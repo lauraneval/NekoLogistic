@@ -3,8 +3,8 @@ import { mobileError, mobileOk } from "@/lib/mobile-api";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().min(1),
-  password: z.string().min(1),
+  email: z.string().trim().toLowerCase().min(3).max(254),
+  password: z.string().min(6).max(128),
 });
 
 export async function POST(req: Request) {

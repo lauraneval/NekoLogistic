@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "404 – Page Not Found | NEKO Logistic",
+  title: "404 – Page Not Found | NekoLogistic",
 };
 
 export default function NotFound() {
@@ -21,7 +21,7 @@ export default function NotFound() {
               <circle cx="18.5" cy="18.5" r="2.5" />
             </svg>
           </div>
-          <span className="text-base font-bold text-[#1A3CA8]">NEKO Logistic</span>
+          <span className="text-base font-bold text-[#1A3CA8]">NekoLogistic</span>
         </Link>
         <Link
           href="/login"
@@ -135,9 +135,9 @@ export default function NotFound() {
 
       {/* Footer */}
       <footer className="relative py-5 text-center text-xs text-slate-400">
-        <span className="font-semibold text-[#1A3CA8]">NEKO Logistic</span>
+        <span className="font-semibold text-[#1A3CA8]">NekoLogistic</span>
         {" · "}
-        © 2024 All rights reserved.
+        © 2026 All rights reserved.
       </footer>
     </div>
   );

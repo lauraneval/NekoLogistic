@@ -66,16 +66,25 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/mobile/tasks/[
     return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
   }
 
+  if (bag.status !== "OUT_FOR_DELIVERY") {
+    return NextResponse.json(
+      { ok: false, message: "Task is not available for acceptance" },
+      { status: 409 },
+    );
+  }
+
   const packageIds = resolvePackageIds(bag);
 
   if (packageIds.length === 0) {
     return mobileError("Task has no packages", 422);
   }
 
+  // Filter by current status to make accept idempotency-safe against race conditions
   const { error: bagUpdateError } = await supabase
     .from("bags")
     .update({ status: "IN_TRANSIT" })
-    .eq("id", bag.id);
+    .eq("id", bag.id)
+    .eq("status", "OUT_FOR_DELIVERY");
 
   if (bagUpdateError) {
     return mobileError("Internal server error", 500);

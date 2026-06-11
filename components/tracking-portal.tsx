@@ -265,7 +265,7 @@ export function TrackingPortal() {
           <div className="flex items-center gap-2">
             <span className="text-[#1A3CA8]"><IconTruck /></span>
             <div>
-              <p className="text-sm font-bold text-[#1A3CA8] leading-tight">NEKO Logistic</p>
+              <p className="text-sm font-bold text-[#1A3CA8] leading-tight">NekoLogistic</p>
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Delivery Cat</p>
             </div>
           </div>
@@ -317,7 +317,7 @@ export function TrackingPortal() {
       <section id="tracking-hero" className="border-b border-slate-200 bg-white py-14">
         <div className="mx-auto max-w-2xl px-6 text-center">
           <p className="text-sm font-semibold uppercase tracking-widest text-[#1A3CA8]">
-            NEKO Logistic · The Delivery Cat
+            NekoLogistic · The Delivery Cat
           </p>
           <h1 className="mt-3 text-4xl font-bold text-slate-900">
             Track Your Shipment
@@ -625,7 +625,7 @@ export function TrackingPortal() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Customer Hotline</p>
-                  <p className="text-sm font-semibold text-slate-800">+62 21 5099 8888</p>
+                  <p className="text-sm font-semibold text-slate-800">+62 852 9060 6772</p>
                   <p className="text-xs text-slate-400">Mon–Fri 08:00–17:00 WIB</p>
                 </div>
               </div>
@@ -639,7 +639,7 @@ export function TrackingPortal() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Email Support</p>
-                  <p className="text-sm font-semibold text-slate-800">support@nekologistic.id</p>
+                  <p className="text-sm font-semibold text-slate-800">support@lauraneval.dev</p>
                   <p className="text-xs text-slate-400">Response within 1 business day</p>
                 </div>
               </div>
@@ -653,8 +653,8 @@ export function TrackingPortal() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Head Office</p>
-                  <p className="text-sm font-semibold text-slate-800">Jakarta Logistic Belt</p>
-                  <p className="text-xs text-slate-400">Jakarta, Indonesia</p>
+                  <p className="text-sm font-semibold text-slate-800">Purwokerto Logistic Belt</p>
+                  <p className="text-xs text-slate-400">Central Java, Indonesia</p>
                 </div>
               </div>
 
@@ -705,9 +705,9 @@ export function TrackingPortal() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-8">
         <div className="mx-auto max-w-5xl px-6 text-center">
-          <p className="text-base font-bold text-[#1A3CA8]">NEKO Logistic</p>
+          <p className="text-base font-bold text-[#1A3CA8]">NekoLogistic</p>
           <p className="mt-1 text-xs text-slate-400">
-            © 2024 NEKO Logistic Group. All rights reserved. Precise logistics for a kinetic world.
+            © 2026 NekoLogistic Group. All rights reserved. Precise logistics for a world.
           </p>
           <div className="mt-4 flex justify-center gap-6 text-xs text-slate-400">
             <button type="button" onClick={() => scrollTo("services")} className="hover:text-slate-600">

@@ -44,8 +44,9 @@ function canCourierDeliverBag(role: string, userId: string, bag: BagSummary | nu
     return true;
   }
 
+  // Kurir requires an explicitly assigned bag. Unassigned or missing bag = deny.
   if (!bag?.assigned_courier_id) {
-    return true;
+    return false;
   }
 
   return bag.assigned_courier_id === userId;

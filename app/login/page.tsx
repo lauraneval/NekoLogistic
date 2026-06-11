@@ -52,7 +52,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </svg>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">NEKO Logistic</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">NekoLogistic</h1>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mt-0.5">
               Delivery Cat • Global Access
             </p>

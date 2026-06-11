@@ -4,6 +4,21 @@ import { authenticateMobileRequest } from "@/lib/mobile-auth";
 import { haversineDistanceMeters, resolveTargetCoordinate } from "@/lib/mobile-geofence";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
+const POD_BUCKET = "proof-of-delivery";
+const MAX_POD_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+};
+
+function getExtension(file: File): string | null {
+  return ALLOWED_MIME_TYPES[file.type] ?? null;
+}
+
 const idSchema = z.uuid();
 
 const deliverSchema = z.object({
@@ -138,6 +153,55 @@ async function insertDeliveryHistory(
 
 async function markBagDelivered(supabase: ReturnType<typeof createSupabaseAdminClient>, bagId: string) {
   return supabase.from("bags").update({ status: "DELIVERED" }).eq("id", bagId);
+}
+
+export async function POST(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id]/deliver">) {
+  const auth = await authenticateMobileRequest(req, ["kurir", "superadmin", "admin_gudang"]);
+  if ("error" in auth) return auth.error;
+
+  const parsedId = idSchema.safeParse((await ctx.params).id);
+  if (!parsedId.success) return mobileError("Invalid task id", 400);
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return mobileError("Invalid form data", 400);
+  }
+
+  const fileInput = formData.get("file");
+  if (!(fileInput instanceof File)) return mobileError("file is required", 400);
+  if (fileInput.size <= 0) return mobileError("file is empty", 400);
+  if (fileInput.size > MAX_POD_IMAGE_SIZE_BYTES) return mobileError("file exceeds 2 MB limit", 400);
+
+  const extension = getExtension(fileInput);
+  if (!extension) return mobileError("file must be JPEG, PNG, WebP, or HEIC", 400);
+
+  const supabase = createSupabaseAdminClient();
+
+  const { data: bag, error: bagError } = await loadBagTask(supabase, parsedId.data);
+  if (bagError) return mobileError("Internal server error", 500);
+  if (!bag) return mobileError("Task not found", 404);
+
+  if (!ensureCourierCanDeliver(bag, auth.data.userId, auth.data.role)) {
+    return mobileError("Forbidden", 403);
+  }
+  const objectPath = `${parsedId.data}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const bytes = await fileInput.arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from(POD_BUCKET)
+    .upload(objectPath, bytes, { contentType: fileInput.type, upsert: false });
+
+  if (uploadError) return mobileError("Failed to upload image", 500);
+
+  const { data: publicUrlData } = supabase.storage.from(POD_BUCKET).getPublicUrl(objectPath);
+
+  return mobileMessage("Proof of delivery uploaded", 200, {
+    bucket: POD_BUCKET,
+    object_path: objectPath,
+    pod_image_url: publicUrlData.publicUrl,
+  });
 }
 
 export async function PUT(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id]/deliver">) {
