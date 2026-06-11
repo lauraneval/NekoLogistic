@@ -60,6 +60,7 @@ export const updatePackageStatusSchema = z.object({
     "OUT_FOR_DELIVERY",
     "IN_TRANSIT",
     "DELIVERED",
+    "FAILED_DELIVERY",
   ]),
 });
 

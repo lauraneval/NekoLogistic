@@ -103,8 +103,8 @@ export async function PATCH(req: Request, ctx: RouteContext<"/api/mobile/tasks/[
     packageIds.map((packageId) => ({
       package_id: packageId,
       event_code: "IN_TRANSIT" as const,
-      event_label: "Paket dalam perjalanan",
-      description: "Kurir telah menerima tugas pengiriman dan paket sedang dalam perjalanan",
+      event_label: "Package in transit",
+      description: "The courier has accepted the delivery assignment and the package is on its way",
       created_by: auth.data.userId,
     })),
   );

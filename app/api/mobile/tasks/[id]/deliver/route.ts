@@ -143,9 +143,9 @@ async function insertDeliveryHistory(
     packageIds.map((packageId) => ({
       package_id: packageId,
       event_code: "DELIVERED" as const,
-      event_label: "Paket berhasil diterima",
+      event_label: "Delivered",
       location: `${payload.latitude},${payload.longitude}`,
-      description: `Proof of delivery tercatat pada ${deliveredAt.toISOString()}`,
+      description: `Proof of delivery recorded at ${deliveredAt.toISOString()}`,
       created_by: actorId,
     })),
   );

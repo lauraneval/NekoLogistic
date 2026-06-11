@@ -135,13 +135,13 @@ async function updateBagAssignment(
     const trackingEvent = assignedCourierId
       ? {
           event_code: "OUT_FOR_DELIVERY" as const,
-          event_label: "Diserahkan ke kurir",
-          description: `Bag ${String(bagRow.bag_code)} di-assign ke kurir`,
+          event_label: "Assigned to courier",
+          description: `Bag ${String(bagRow.bag_code)} assigned to courier`,
         }
       : {
           event_code: "IN_WAREHOUSE" as const,
-          event_label: "Kembali ke gudang",
-          description: `Bag ${String(bagRow.bag_code)} dibuka dari penugasan kurir`,
+          event_label: "Returned to warehouse",
+          description: `Bag ${String(bagRow.bag_code)} opened from courier assignment`,
         };
 
     const trackingRows = packageIds.map((packageId) => ({

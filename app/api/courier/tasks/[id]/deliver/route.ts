@@ -148,7 +148,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/courier/tasks/[i
   const { error: trackingError } = await supabase.from("tracking_history").insert({
     package_id: id,
     event_code: "DELIVERED",
-    event_label: "Paket berhasil diterima",
+    event_label: "Package successfully delivered",
     location,
     description,
     created_by: auth.data.userId,

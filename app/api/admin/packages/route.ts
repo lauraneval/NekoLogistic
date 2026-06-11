@@ -235,9 +235,9 @@ export async function POST(req: Request) {
   const { error: trackingError } = await supabase.from("tracking_history").insert({
     package_id: pkg.id,
     event_code: "PACKAGE_CREATED",
-    event_label: "Paket dibuat di gudang",
+    event_label: "Package created at warehouse",
     location: "Warehouse",
-    description: "Label resi telah dibuat",
+    description: "Shipping label created",
     created_by: auth.data.userId,
   });
 
