@@ -13,7 +13,7 @@ export default async function AdminGudangBaggingPage() {
       .limit(500),
     supabase
       .from("bags")
-      .select("id, bag_code, destination_city, status, created_at, assigned_courier_id, bag_items(package_id)")
+      .select("id, bag_code, destination_city, status, created_at, assigned_courier_id, bag_items(package_id, packages(id, resi, package_name, receiver_name, receiver_address, destination_city))")
       .order("created_at", { ascending: false })
       .limit(100),
     supabase
@@ -42,6 +42,7 @@ export default async function AdminGudangBaggingPage() {
     created_at: typeof bag.created_at === "string" ? bag.created_at : "",
     package_count: Array.isArray(bag.bag_items) ? bag.bag_items.length : 0,
     assigned_courier_id: typeof bag.assigned_courier_id === "string" ? bag.assigned_courier_id : null,
+    bag_items: Array.isArray(bag.bag_items) ? bag.bag_items : [],
   }));
 
   const couriers = (courierProfiles ?? []).map((p) => ({

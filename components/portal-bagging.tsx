@@ -24,6 +24,9 @@ type BagRecord = {
   created_at: string;
   package_count: number;
   assigned_courier_id: string | null;
+  bag_items?: Array<{
+    packages?: BagPackage | { id?: string };
+  }>;
 };
 
 type Props = {
@@ -60,6 +63,8 @@ function formatDate(iso: string) {
 export function PortalBagging({ availablePackages, existingBags, couriers }: Readonly<Props>) {
   const router = useRouter();
   const [destination, setDestination] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [autoAddedPackageIds, setAutoAddedPackageIds] = useState<Set<string>>(new Set());
   const [pkgSearch, setPkgSearch] = useState("");
   const [scanQueue, setScanQueue] = useState<ScanEntry[]>([]);
   const [creating, setCreating] = useState(false);
@@ -78,25 +83,120 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
   useEffect(() => { setBags(existingBags); }, [existingBags]);
   useEffect(() => { scanRef.current?.focus(); }, []);
 
-  const scanned = scanQueue.filter((e) => e.status === "SCANNED");
-  const successCount = scanned.length;
-  const errorCount = scanQueue.filter((e) => e.status === "INVALID").length;
-  const totalWeight = scanned.reduce((sum, e) => sum + Number.parseFloat(e.weight || "0"), 0);
-  const bagCapacity = Math.min(100, Math.round((totalWeight / 200) * 100));
+  // Calculate package IDs already in bags
+  const baggingIds = new Set<string>();
+  for (const bag of bags) {
+    const items = Array.isArray(bag.bag_items) ? bag.bag_items : [];
+    for (const item of items) {
+      const pkg = item?.packages;
+      if (pkg && typeof pkg === "object" && "id" in pkg) {
+        baggingIds.add(String(pkg.id));
+      }
+    }
+  }
 
+  const scanned = scanQueue.filter((e) => e.status === "SCANNED");
   const scannedIds = new Set(scanned.map((e) => e.id));
   const q = pkgSearch.toLowerCase();
+
+  // Determine current city: from dropdown or inferred from first scanned package
+  const currentCity = selectedCity || (scanned.length > 0 ? availablePackages.find((p) => p.id === scanned[0].id)?.destination_city : "");
+
+  // Filter available packages: exclude scanned + already bagged + enforce single city per bag
   const filteredAvailable = availablePackages.filter(
     (p) =>
       !scannedIds.has(p.id) &&
+      !baggingIds.has(p.id) &&
+      (currentCity === "" || p.destination_city === currentCity) &&
       (q === "" ||
         p.resi.toLowerCase().includes(q) ||
         p.receiver_name.toLowerCase().includes(q) ||
         (p.destination_city ?? "").toLowerCase().includes(q)),
   );
 
+  // Get unique cities ONLY from filtered available packages
+  const availableCities = [...new Set(filteredAvailable
+    .map((p) => p.destination_city)
+    .filter(Boolean))] as string[];
+
+  // Auto-add packages when city is selected + validate single-city enforcement
+  useEffect(() => {
+    if (selectedCity) {
+      setScanQueue((prev) => {
+        // Calculate current scanned IDs from previous state
+        const currentScannedIds = new Set(prev.filter((e) => e.status === "SCANNED").map((e) => e.id));
+        
+        // Recalculate baggingIds inside useEffect to use latest bags
+        const currentBaggingIds = new Set<string>();
+        for (const bag of bags) {
+          const items = Array.isArray(bag.bag_items) ? bag.bag_items : [];
+          for (const item of items) {
+            const pkg = item?.packages;
+            if (pkg && typeof pkg === "object" && "id" in pkg) {
+              currentBaggingIds.add(String(pkg.id));
+            }
+          }
+        }
+        
+        // Build map of packageId -> package for lookup
+        const pkgMap = new Map(availablePackages.map((p) => [p.id, p]));
+        
+        // Filter: keep ONLY packages from selected city, remove any from other cities
+        const validatedQueue = prev.filter((entry) => {
+          const pkg = pkgMap.get(entry.id);
+          return pkg && pkg.destination_city === selectedCity;
+        });
+        
+        const packagesToAdd = availablePackages.filter(
+          (pkg) =>
+            pkg.destination_city === selectedCity &&
+            !currentScannedIds.has(pkg.id) &&
+            !currentBaggingIds.has(pkg.id),
+        );
+        
+        if (packagesToAdd.length === 0) return validatedQueue; // Return validated queue even if no new packages
+        
+        const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const newAutoAddedIds = new Set(packagesToAdd.map((pkg) => pkg.id));
+        setAutoAddedPackageIds(newAutoAddedIds);
+
+        return [
+          ...packagesToAdd.map((pkg) => ({
+            id: pkg.id,
+            resi: pkg.resi,
+            type: pkg.package_name ?? "Package",
+            weight: String(pkg.weight_kg ?? "0"),
+            status: "SCANNED" as const,
+            time,
+          })),
+          ...validatedQueue,
+        ];
+      });
+    } else {
+      // If city is deselected, remove auto-added packages
+      setScanQueue((prev) => prev.filter((e) => !autoAddedPackageIds.has(e.id)));
+      setAutoAddedPackageIds(new Set());
+    }
+  }, [selectedCity, availablePackages, bags]);
+
+  const successCount = scanned.length;
+  const errorCount = scanQueue.filter((e) => e.status === "INVALID").length;
+  const totalWeight = scanned.reduce((sum, e) => sum + Number.parseFloat(e.weight || "0"), 0);
+  const bagCapacity = Math.min(100, Math.round((totalWeight / 200) * 100));
+
   function addPackageToQueue(pkg: BagPackage) {
-    if (scannedIds.has(pkg.id)) return;
+    if (scannedIds.has(pkg.id) || baggingIds.has(pkg.id)) return;
+    
+    // Enforce single-city rule
+    // If city already selected, only allow packages from that city
+    if (selectedCity && pkg.destination_city !== selectedCity) return;
+    
+    // If no city selected but packages already in queue, infer city from first scanned package
+    if (!selectedCity && scanned.length > 0) {
+      const firstCity = availablePackages.find((p) => p.id === scanned[0].id)?.destination_city;
+      if (firstCity && pkg.destination_city !== firstCity) return;
+    }
+    
     const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     setScanQueue((prev) => [
       { id: pkg.id, resi: pkg.resi, type: pkg.package_name ?? "Package", weight: String(pkg.weight_kg ?? "0"), status: "SCANNED", time },
@@ -111,16 +211,36 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
   async function handleFinalize() {
     const validResi = scanned.map((e) => e.resi);
     if (!validResi.length) { setCreateMsg({ text: "No packages scanned yet.", ok: false }); return; }
-    if (!destination.trim()) { setCreateMsg({ text: "Please specify a destination city first.", ok: false }); return; }
+    
+    // Determine final city: use selected city or infer from first scanned package
+    let finalCity = selectedCity.trim();
+    
+    if (!finalCity && scanned.length > 0) {
+      // Infer city from first package in queue
+      const firstPkgId = scanned[0].id;
+      const firstPkg = availablePackages.find((p) => p.id === firstPkgId);
+      finalCity = firstPkg?.destination_city?.trim() ?? "";
+    }
+    
+    if (!finalCity) { 
+      setCreateMsg({ text: "Cannot determine destination city. Please select a city or add packages from same city.", ok: false }); 
+      return; 
+    }
 
     setCreating(true);
     setCreateMsg(null);
 
     try {
+      const payload: Record<string, unknown> = {
+        resiNumbers: validResi,
+        packageIds: scanned.map((e) => e.id),
+        destinationCity: finalCity,
+      };
+      
       const res = await fetch("/api/admin/manifests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destinationCity: destination.trim(), resiNumbers: validResi }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json() as {
         ok?: boolean;
@@ -132,7 +252,7 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
         const newBag: BagRecord = {
           id: json.data.bag_id ?? crypto.randomUUID(),
           bag_code: json.data.bag_code ?? "BAG-???",
-          destination_city: json.data.destination_city ?? destination,
+          destination_city: json.data.destination_city ?? finalCity,
           status: "OPEN",
           created_at: new Date().toISOString(),
           package_count: json.data.package_count ?? validResi.length,
@@ -145,6 +265,8 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
         });
         setScanQueue([]);
         setDestination("");
+        setSelectedCity("");
+        setAutoAddedPackageIds(new Set());
         router.refresh();
       } else {
         setCreateMsg({ text: json?.error?.message ?? "Failed to create bag.", ok: false });
@@ -228,7 +350,14 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
           <p className="mt-1 text-sm text-slate-500">Group packages by destination and assign to couriers.</p>
         </div>
         <button
-          onClick={() => { setScanQueue([]); setDestination(""); setCreateMsg(null); }}
+          onClick={() => { 
+            setScanQueue([]); 
+            setDestination(""); 
+            setSelectedCity("");
+
+            setAutoAddedPackageIds(new Set());
+            setCreateMsg(null); 
+          }}
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 3h18M3 9h18M3 15h18M3 21h18" /></svg>
@@ -258,21 +387,30 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
             </div>
             <div className="space-y-4">
               <div>
-                <label htmlFor="bag-destination" className="mb-1.5 block text-xs font-semibold text-slate-500">Destination City</label>
-                <input
-                  id="bag-destination"
-                  list="cities"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="e.g. Jakarta, Bandung..."
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1A3CA8] focus:ring-1 focus:ring-[#1A3CA8]"
-                />
-                <datalist id="cities">
-                  {[...new Set(availablePackages.map((p) => p.destination_city ?? "").filter(Boolean))].map((c) => (
-                    <option key={c} value={c} />
+                <label htmlFor="city-select" className="mb-1.5 block text-xs font-semibold text-slate-500">Filter by City</label>
+                <select
+                  id="city-select"
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  disabled={successCount > 0}
+                  className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#1A3CA8] focus:ring-1 focus:ring-[#1A3CA8] ${successCount > 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <option value="">-- Pilih Kota (opsional) --</option>
+                  {availableCities.map((city) => (
+                    <option key={city} value={city}>{city}</option>
                   ))}
-                </datalist>
+                </select>
+                {selectedCity && (
+                  <p className="mt-2 text-xs text-[#1A3CA8] font-medium">
+                    ✓ Packages dari <strong>{selectedCity}</strong> akan otomatis ditambahkan ke antrian.
+                    {successCount > 0 && " (Kota terkunci - tekan Reset Form untuk ubah)"}
+                  </p>
+                )}
+                {!selectedCity && successCount > 0 && (
+                  <p className="mt-2 text-xs text-red-600 font-medium">⚠ Tekan Reset Form untuk ubah atau finalize bag ini.</p>
+                )}
               </div>
+
             </div>
           </div>
 
@@ -359,10 +497,15 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {scanQueue.map((entry) => (
+                  {scanQueue.map((entry) => {
+                    const isAutoAdded = autoAddedPackageIds.has(entry.id);
+                    return (
                     <tr key={entry.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5">
-                        <p className={`font-mono text-xs font-semibold ${entry.status === "INVALID" ? "text-red-600" : "text-slate-800"}`}>{entry.resi}</p>
+                        <div className="flex items-center gap-2">
+                          <p className={`font-mono text-xs font-semibold ${entry.status === "INVALID" ? "text-red-600" : "text-slate-800"}`}>{entry.resi}</p>
+                          {isAutoAdded && <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">Auto</span>}
+                        </div>
                         <p className="text-xs text-slate-400">{entry.time}</p>
                       </td>
                       <td className="px-4 py-2.5 text-slate-600 text-xs">{entry.type}</td>
@@ -385,9 +528,10 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {scanQueue.length === 0 && (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">Scan or type a tracking number above, then press Enter</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">Scan or type a tracking number above, then press Enter</td></tr>
                   )}
                 </tbody>
               </table>
