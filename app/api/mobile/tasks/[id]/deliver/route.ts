@@ -244,6 +244,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
   const { data: task, error: taskError } = await loadBagTask(supabase, parsedId.data);
 
   if (taskError) {
+    console.error("Error leading task!!!");
     return mobileError("Internal server error", 500);
   }
 
@@ -292,6 +293,7 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
   );
 
   if (packageUpdateError) {
+    console.error("Error updating packages!!!");
     return mobileError("Internal server error", 500);
   }
 
@@ -304,12 +306,14 @@ export async function PUT(req: Request, ctx: RouteContext<"/api/mobile/tasks/[id
   );
 
   if (trackingError) {
+    console.error("Error inserting delivery history!!!");
     return mobileError("Internal server error", 500);
   }
 
   const { error: bagUpdateError } = await markBagDelivered(supabase, bag.id);
 
   if (bagUpdateError) {
+    console.error("Error updating bags!!!");
     return mobileError("Internal server error", 500);
   }
 
