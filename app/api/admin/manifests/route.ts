@@ -5,6 +5,17 @@ import { makeBagCode } from "@/lib/resi";
 import { createBaggingSchema } from "@/lib/validation";
 import { z } from "zod";
 
+function dbError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const e = error as Record<string, unknown>;
+    return [e.message, e.details, e.hint, e.code ? `[code: ${String(e.code)}]` : null]
+      .filter(Boolean)
+      .join(" | ") || "Unknown DB error";
+  }
+  return String(error ?? "Unknown error");
+}
+
 type ManifestResult = {
   bag_id: string;
   bag_code: string;
@@ -80,7 +91,7 @@ function packageDisplayName(pkg: PackageForBagging & Record<string, unknown>) {
 }
 
 function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
 async function updateBagAssignment(
@@ -89,13 +100,21 @@ async function updateBagAssignment(
   assignedCourierId: string | null,
   actorId: string,
 ) {
-  const { data: bag, error: bagError } = await supabase
+  const fullSelect = await supabase
     .from("bags")
-    .select(
-      "id, bag_code, destination_city, status, assigned_courier_id, bag_items(package_id, packages(id, status, resi, receiver_name, receiver_address, destination_city, target_latitude, target_longitude))",
-    )
+    .select("id, bag_code, destination_city, status, assigned_courier_id, bag_items(package_id)")
     .eq("id", bagId)
     .maybeSingle();
+
+  const legacySelect = fullSelect.error
+    ? await supabase
+        .from("bags")
+        .select("id, bag_code, status, bag_items(package_id)")
+        .eq("id", bagId)
+        .maybeSingle()
+    : fullSelect;
+
+  const { data: bag, error: bagError } = legacySelect;
 
   if (bagError || !bag) {
     throw bagError ?? new Error("Bag not found");
@@ -533,7 +552,7 @@ export async function POST(req: Request) {
     return fail(
       "Failed to create bagging",
       500,
-      error instanceof Error ? error.message : "Unknown error",
+      dbError(error),
     );
   }
 
@@ -594,7 +613,7 @@ export async function PATCH(req: Request) {
     return fail(
       "Failed to update bag assignment",
       500,
-      error instanceof Error ? error.message : "Unknown error",
+      dbError(error),
     );
   }
 }
