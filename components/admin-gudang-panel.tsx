@@ -365,6 +365,7 @@ export function AdminGudangPanel() {
 
     if (!response.ok || !json.ok) {
       setListStatus(json?.error?.message ?? "Failed to update courier assignment");
+      await refreshData();
       return;
     }
 

@@ -313,9 +313,11 @@ export function PortalBagging({ availablePackages, existingBags, couriers }: Rea
           ...prev,
           [bag.id]: { text: json?.error?.message ?? "Failed to assign courier.", ok: false },
         }));
+        router.refresh();
       }
     } catch {
       setAssignMsgs((prev) => ({ ...prev, [bag.id]: { text: "Connection failed.", ok: false } }));
+      router.refresh();
     }
     setAssigningBagId(null);
   }

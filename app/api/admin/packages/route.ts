@@ -13,6 +13,17 @@ const uuidSchema = z.uuid();
 import { packageStatusLabels, type PackageStatus } from "@/lib/types";
 import { makeBagCode } from "@/lib/resi";
 
+function dbError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const e = error as Record<string, unknown>;
+    return [e.message, e.details, e.hint, e.code ? `[code: ${String(e.code)}]` : null]
+      .filter(Boolean)
+      .join(" | ") || "Unknown DB error";
+  }
+  return String(error ?? "Unknown error");
+}
+
 const fullPackageSelect =
   "id, resi, package_name, sender_name, sender_phone, sender_email, receiver_name, receiver_phone, receiver_address, receiver_state, receiver_zip, destination_city, weight_kg, length_cm, width_cm, height_cm, status, created_at, updated_at";
 const legacyPackageSelect =
@@ -229,7 +240,7 @@ export async function POST(req: Request) {
   const { data: pkg, error: packageError } = legacyPackageResult;
 
   if (packageError || !pkg) {
-    return fail("Failed to create package", 500);
+    return fail("Failed to create package", 500, dbError(packageError));
   }
 
   const { error: trackingError } = await supabase.from("tracking_history").insert({
@@ -304,7 +315,7 @@ export async function PATCH(req: Request) {
       return fail(
         "Package status updated but failed to assign bagging",
         500,
-        error instanceof Error ? error.message : "Unknown error",
+        dbError(error),
       );
     }
   }

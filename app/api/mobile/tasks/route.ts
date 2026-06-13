@@ -109,7 +109,8 @@ export async function GET(req: Request) {
   }
 
   const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase
+
+  let { data, error } = await supabase
     .from("bags")
     .select(
       "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_phone, receiver_address, package_name, weight_kg, length_cm, width_cm, height_cm, sender_name, sender_phone, sender_email, status, target_latitude, target_longitude))",
@@ -118,6 +119,18 @@ export async function GET(req: Request) {
     .in("status", ["OPEN", "IN_WAREHOUSE", "IN_TRANSIT", "OUT_FOR_DELIVERY"])
     .order("created_at", { ascending: false })
     .limit(300);
+
+  if (error) {
+    ({ data, error } = await supabase
+      .from("bags")
+      .select(
+        "id, bag_code, destination_city, status, assigned_courier_id, created_at, bag_items(package_id, packages(id, resi, receiver_name, receiver_phone, receiver_address, package_name, weight_kg, length_cm, width_cm, height_cm, sender_name, sender_phone, sender_email, status))",
+      )
+      .eq("assigned_courier_id", auth.data.userId)
+      .in("status", ["OPEN", "IN_WAREHOUSE", "IN_TRANSIT", "OUT_FOR_DELIVERY"])
+      .order("created_at", { ascending: false })
+      .limit(300));
+  }
 
   if (error) {
     return mobileError("Internal server error", 500);

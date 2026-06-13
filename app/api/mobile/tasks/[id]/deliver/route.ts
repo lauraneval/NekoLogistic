@@ -94,10 +94,20 @@ function resolvePackages(bagItems: NonNullable<BagTaskRow["bag_items"]>) {
 }
 
 async function loadBagTask(supabase: ReturnType<typeof createSupabaseAdminClient>, id: string) {
-  return supabase
+  const { data, error } = await supabase
     .from("bags")
     .select(
       "id, bag_code, status, assigned_courier_id, bag_items(package_id, packages(id, resi, receiver_name, receiver_address, status, target_latitude, target_longitude))",
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!error) return { data, error };
+
+  return supabase
+    .from("bags")
+    .select(
+      "id, bag_code, status, assigned_courier_id, bag_items(package_id, packages(id, resi, receiver_name, receiver_address, status))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -118,7 +128,7 @@ async function updatePackageProof(
   deliveredAt: Date,
   targetCoordinate: { latitude: number; longitude: number },
 ) {
-  return supabase
+  const fullResult = await supabase
     .from("packages")
     .update({
       status: "DELIVERED",
@@ -130,6 +140,13 @@ async function updatePackageProof(
       target_longitude: targetCoordinate.longitude,
     })
     .in("id", packageIds);
+
+  if (!fullResult.error) return fullResult;
+
+  return supabase
+    .from("packages")
+    .update({ status: "DELIVERED" })
+    .in("id", packageIds);
 }
 
 async function insertDeliveryHistory(
@@ -139,13 +156,24 @@ async function insertDeliveryHistory(
   deliveredAt: Date,
   actorId: string,
 ) {
-  return supabase.from("tracking_history").insert(
+  const fullResult = await supabase.from("tracking_history").insert(
     packageIds.map((packageId) => ({
       package_id: packageId,
       event_code: "DELIVERED" as const,
       event_label: "Delivered",
       location: `${payload.latitude},${payload.longitude}`,
       description: `Proof of delivery recorded at ${deliveredAt.toISOString()}`,
+      created_by: actorId,
+    })),
+  );
+
+  if (!fullResult.error) return fullResult;
+
+  return supabase.from("tracking_history").insert(
+    packageIds.map((packageId) => ({
+      package_id: packageId,
+      event_code: "DELIVERED" as const,
+      location: `${payload.latitude},${payload.longitude}`,
       created_by: actorId,
     })),
   );
